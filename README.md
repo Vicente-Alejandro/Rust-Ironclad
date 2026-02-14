@@ -1,6 +1,6 @@
 # Template Project - Rust Backend Framework
 
-A try to professional backend framework built with Rust, designed for maximum performance and efficiency.
+An attempt to professional backend framework built with Rust, designed for maximum performance and efficiency.
 
 ## 🚀 Features
 
