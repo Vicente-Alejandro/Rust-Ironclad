@@ -1,23 +1,21 @@
-// CAN YOU TRANSLATE ALL OF THIS TO ENGLISH PLEASE
+# Template Project - Rust Backend Framework
 
-# Template Project - Framework Backend en Rust
+A try to professional backend framework built with Rust, designed for maximum performance and efficiency.
 
-Un framework backend profesional y producción-listo construido con Rust, diseñado para máximo rendimiento y eficiencia.
-
-## 🚀 Características
+## 🚀 Features
 
 ### Core
-- ⚡ **Actix-web** - Framework web async ultrarrápido
-- 🔄 **Tokio** - Runtime async completo
-- 🗄️ **PostgreSQL** con SQLx (queries type-safe)
-- 🍃 **MongoDB** - Soporte opcional para NoSQL
-- 🔐 **JWT** - Autenticación con JSON Web Tokens
-- 🔒 **Bcrypt** - Hashing seguro de contraseñas
+- ⚡ **Actix-web** - Ultra-fast async web framework
+- 🔄 **Tokio** - Complete async runtime
+- 🗄️ **PostgreSQL** with SQLx (type-safe queries)
+- 🍃 **MongoDB** - Optional NoSQL support
+- 🔐 **JWT** - JSON Web Token authentication
+- 🔒 **Bcrypt** - Secure password hashing
 
-## 📁 Estructura del Proyecto
+## 📁 Project Structure
 
 ```
-poroject
+project
 ├─ .env
 ├─ .env.example
 ├─ Cargo.lock
@@ -28,76 +26,75 @@ poroject
 ├─ project.json
 ├─ README.md
 └─ src
-   ├─ config
-   │  └─ mod.rs
-   ├─ db
-   │  ├─ mod.rs
-   │  ├─ mongo.rs
-   │  └─ postgres.rs
-   ├─ errors
-   │  └─ mod.rs
-   ├─ handlers
-   │  ├─ auth.rs
-   │  ├─ examples
-   │  │  └─ users.examle.rs
-   │  ├─ mod.rs
-   │  └─ users.rs
-   ├─ main.rs
-   ├─ middleware
-   │  ├─ auth.rs
-   │  ├─ mod.rs
-   │  └─ role.rs
-   ├─ models
-   │  ├─ mod.rs
-   │  └─ user.rs
-   ├─ routes
-   │  └─ mod.rs
-   └─ utils
-      ├─ auth.rs
-      ├─ jwt.rs
-      └─ mod.rs
-
+  ├─ config
+  │  └─ mod.rs
+  ├─ db
+  │  ├─ mod.rs
+  │  ├─ mongo.rs
+  │  └─ postgres.rs
+  ├─ errors
+  │  └─ mod.rs
+  ├─ handlers
+  │  ├─ auth.rs
+  │  ├─ examples
+  │  │  └─ users.example.rs
+  │  ├─ mod.rs
+  │  └─ users.rs
+  ├─ main.rs
+  ├─ middleware
+  │  ├─ auth.rs
+  │  ├─ mod.rs
+  │  └─ role.rs
+  ├─ models
+  │  ├─ mod.rs
+  │  └─ user.rs
+  ├─ routes
+  │  └─ mod.rs
+  └─ utils
+    ├─ auth.rs
+    ├─ jwt.rs
+    └─ mod.rs
 ```
 
-## 🔧 Configuración Rápida
+## 🔧 Quick Setup
 
-### Requisitos
+### Requirements
 - Rust 1.70+
-- PostgreSQL 12+ (opcional MongoDB)
+- PostgreSQL 12+ (optional MongoDB)
 
-### Pasos
+### Steps
 
-1. **Clonar y configurar .env:**
+1. **Clone and configure .env:**
 ```bash
-# Copiar el archivo .env y ajustar valores
+# Copy the .env file and adjust values
 cp .env.example .env
 ```
 
-2. **Crear base de datos PostgreSQL:**
+2. **Create PostgreSQL database:**
 ```bash
 createdb template_db
 ```
 
-3. **Ejecutar migraciones:**
+3. **Run migrations:**
 ```bash
-# Usar sqlx-cli
+# Use sqlx-cli
 cargo install sqlx-cli
 sqlx migrate run
 ```
 
-4. **Compilar y ejecutar:**
+4. **Build and run:**
 ```bash
 cargo build --release
 cargo run
 ```
 
-El servidor estará disponible en `http://127.0.0.1:8080`
+Server will be available at `http://127.0.0.1:8080`
 
-## 📚 Endpoints API
+## 📚 API Endpoints
 
-### Autenticación
+### Authentication
 
-#### Registro
+#### Register
 ```bash
 POST /api/auth/register
 Content-Type: application/json
@@ -124,121 +121,121 @@ Content-Type: application/json
 ```json
 {
   "user": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "email": "user@example.com",
-    "username": "john_doe",
-    "is_active": true,
-    "created_at": "2025-12-27T10:30:00Z"
+   "id": "550e8400-e29b-41d4-a716-446655440000",
+   "email": "user@example.com",
+   "username": "john_doe",
+   "is_active": true,
+   "created_at": "2025-12-27T10:30:00Z"
   },
   "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 }
 ```
 
-### Usuarios
+### Users
 
-#### Obtener Perfil (Requiere Autenticación)
+#### Get Profile (Requires Authentication)
 ```bash
 GET /api/users
 Authorization: Bearer <token>
 ```
 
-#### Eliminar Perfil (Requiere Autenticación)
+#### Delete Profile (Requires Authentication)
 ```bash
 DELETE /api/users
 Authorization: Bearer <token>
 ```
 
-## 🔐 Seguridad
+## 🔐 Security
 
-### Implementado
-- ✅ Contraseñas hasheadas con Bcrypt (DEFAULT_COST = 12)
-- ✅ JWT con expiración configurable
-- ✅ Validación de entrada en todos los endpoints
-- ✅ CORS ready (agregar cuando sea necesario)
+### Implemented
+- ✅ Passwords hashed with Bcrypt (DEFAULT_COST = 12)
+- ✅ JWT with configurable expiration
+- ✅ Input validation on all endpoints
+- ✅ CORS ready (add when needed)
 
-### Recomendaciones Producción
-1. Cambiar `JWT_SECRET` a valor fuerte
-2. Usar HTTPS en producción
-3. Implementar rate limiting
-4. Agregar CORS según necesidad
-5. Monitoreo y alertas
+### Production Recommendations
+1. Change `JWT_SECRET` to strong value
+2. Use HTTPS in production
+3. Implement rate limiting
+4. Add CORS as needed
+5. Monitoring and alerts
 
-## 🗄️ Base de Datos
+## 🗄️ Database
 
 ### PostgreSQL
-SQLx proporciona:
-- Type-safe queries (compiladas en tiempo de compilación)
-- Prepared statements automáticas
-- Pool de conexiones
+SQLx provides:
+- Type-safe queries (compiled at compile time)
+- Automatic prepared statements
+- Connection pooling
 
-## 📦 Dependencias Principales
+## 📦 Main Dependencies
 
-| Librería | Propósito | Razón |
-|----------|-----------|-------|
-| actix-web | Framework web | Más rápido, flexible y maduro |
-| tokio | Runtime async | Estándar de la industria |
-| sqlx | ORM type-safe | Seguridad en tiempo de compilación |
-| mongodb | NoSQL | Flexibilidad opcional |
-| jsonwebtoken | JWT | Standard de autenticación |
+| Library | Purpose | Reason |
+|---------|---------|--------|
+| actix-web | Web framework | Fastest, flexible and mature |
+| tokio | Async runtime | Industry standard |
+| sqlx | Type-safe ORM | Compile-time safety |
+| mongodb | NoSQL | Optional flexibility |
+| jsonwebtoken | JWT | Authentication standard |
 | bcrypt | Password hashing | Secure & industry standard |
-| validator | Validación | Macros derivables |
-| tracing | Logging | Moderno y estructurado |
+| validator | Validation | Derivable macros |
+| tracing | Logging | Modern and structured |
 
-## ❌ No Incluido (a propósito)
+## ❌ Not Included (on purpose)
 
-- **Diesel** - Más complejo que SQLx, menos flexible
-- **Rocket** - Más lento que Actix-web
-- **SeaORM** - Aún no listo para producción
-- **Tests en v1** - Se agregará en próximas versiones
-- **CORS/Rate Limit** - Agregar según necesidad
+- **Diesel** - More complex than SQLx, less flexible
+- **Rocket** - Slower than Actix-web
+- **SeaORM** - Not production-ready yet
+- **Tests in v1** - Will be added in future versions
+- **CORS/Rate Limit** - Add as needed
 
-## 🚀 Próximas Mejoras
+## 🚀 Future Improvements
 
-- [ ] Tests unitarios e integración
+- [ ] Unit and integration tests
 - [ ] CORS middleware
 - [ ] Rate limiting
 - [ ] Refresh tokens
-- [ ] Roles y permisos
-- [ ] Soft delete de usuarios
-- [ ] Más endpoints CRUD
+- [ ] Roles and permissions
+- [ ] Soft delete users
+- [ ] More CRUD endpoints
 - [ ] WebSocket support
-- [ ] GraphQL layer (opcional)
-- [ ] Caching con Redis
+- [ ] GraphQL layer (optional)
+- [ ] Caching with Redis
 
-## 📝 Variables de Entorno
+## 📝 Environment Variables
 
 ```env
-SERVER_HOST=127.0.0.1          # Host del servidor
-SERVER_PORT=8080                # Puerto del servidor
+SERVER_HOST=127.0.0.1          # Server host
+SERVER_PORT=8080                # Server port
 ENVIRONMENT=development          # development/staging/production
 
-DATABASE_URL=...                # URL de PostgreSQL
+DATABASE_URL=...                # PostgreSQL URL
 DB_MAX_CONNECTIONS=5            # Pool size
 
-MONGODB_URL=...                 # URL de MongoDB (opcional)
-MONGODB_NAME=template_db        # Nombre de BD MongoDB
+MONGODB_URL=...                 # MongoDB URL (optional)
+MONGODB_NAME=template_db        # MongoDB database name
 
-JWT_SECRET=...                  # Clave secreta JWT
-JWT_EXPIRATION=86400            # Segundos (default: 24h)
+JWT_SECRET=...                  # JWT secret key
+JWT_EXPIRATION=86400            # Seconds (default: 24h)
 ```
 
-## 💡 Tips de Desarrollo
+## 💡 Development Tips
 
-### Compilación rápida
+### Fast compilation
 ```bash
-cargo check  # Verificar sin compilar binario
+cargo check  # Verify without building binary
 ```
 
-### Release optimizado
+### Optimized release
 ```bash
 cargo build --release
 ```
 
-### Ver logs detallados
+### View detailed logs
 ```bash
 RUST_LOG=debug cargo run
 ```
 
-## 📄 Licencia
+## 📄 License
 
 MIT
