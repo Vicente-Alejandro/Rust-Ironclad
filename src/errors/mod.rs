@@ -15,7 +15,7 @@ pub enum ApiError {
     Unauthorized,
 
     #[error("Forbidden")]
-    Forbidden,
+    Forbidden(String),
 
     #[error("Internal Server Error")]
     InternalServerError(String),
@@ -46,7 +46,7 @@ impl ResponseError for ApiError {
             ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             // ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
-            ApiError::Forbidden => (StatusCode::FORBIDDEN, "Forbidden".to_string()),
+            ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg.clone()),
             ApiError::ValidationError(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             ApiError::DatabaseError(msg) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -74,7 +74,7 @@ impl ResponseError for ApiError {
             ApiError::NotFound(_) => StatusCode::NOT_FOUND,
             // ApiError::BadRequest(_) => StatusCode::BAD_REQUEST,
             ApiError::Unauthorized => StatusCode::UNAUTHORIZED,
-            ApiError::Forbidden => StatusCode::FORBIDDEN,
+            ApiError::Forbidden(_) => StatusCode::FORBIDDEN,
             ApiError::ValidationError(_) => StatusCode::BAD_REQUEST,
             ApiError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             ApiError::JwtError(_) => StatusCode::UNAUTHORIZED,

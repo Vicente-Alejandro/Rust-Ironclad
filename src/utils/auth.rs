@@ -1,6 +1,6 @@
 use bcrypt::{hash, verify, DEFAULT_COST};
 use crate::errors::ApiError;
-use crate::models::user::Claims;
+use crate::domain::entities::user::Claims;
 
 /// Hash password with bcrypt
 pub fn hash_password(password: &str) -> Result<String, ApiError> {

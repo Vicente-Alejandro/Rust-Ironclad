@@ -29,7 +29,7 @@ jsonwebtoken = "9.2"
 bcrypt = "0.15"
 
 # Validation
-validator = { version = "0.16", features = ["derive"] }
+validator = { version = "0.18", features = ["derive"] }
 
 # Configuration
 dotenv = "0.15"
@@ -57,3 +57,19 @@ lazy_static = "1.4"
 
 # Futures
 futures = "0.3"
+
+# Async Trait
+async-trait = "0.1"
+
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
+[dev-dependencies]
+# Testing
+mockall = "0.12"
+tokio-test = "0.4"
+
+[[bin]]
+name = "cli"
+path = "src/cli/main.rs"
+required-features = []

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use crate::errors::ApiError;
-use crate::models::user::Claims;
+use crate::domain::entities::user::Claims;
 use crate::config::AppConfig;
 
 pub fn create_token(user_id: &str, email: &str, role: &str, config: &AppConfig) -> Result<String, ApiError> {
