@@ -32,7 +32,7 @@ impl UserService {
         page: i32,
         per_page: i32,
     ) -> Result<PaginatedResponse<UserResponse>, ApiError> {
-        // Validar parámetros de paginación
+        // Validate pagination parameters
         if page < 1 {
             return Err(ApiError::ValidationError(
                 "Page must be greater than 0".to_string()
@@ -75,9 +75,9 @@ impl UserService {
             .await?
             .ok_or_else(|| ApiError::NotFound("User not found".to_string()))?;
 
-        // Actualizar campos si están presentes
+        // Update fields if present
         if let Some(username) = request.username {
-            // Validar que el username no esté vacío
+            // Validate that username is not empty
             if username.trim().is_empty() {
                 return Err(ApiError::ValidationError(
                     "Username cannot be empty".to_string()
@@ -87,7 +87,7 @@ impl UserService {
         }
 
         if let Some(email) = request.email {
-            // Validar que el email no esté en uso por otro usuario
+            // Validate that email is not in use by another user
             if let Some(existing_user) = self.user_repository.get_by_email(&email).await? {
                 if existing_user.id != user_id {
                     return Err(ApiError::Conflict(

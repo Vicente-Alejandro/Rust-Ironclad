@@ -5,7 +5,7 @@ use validator::Validate;
 
 use crate::errors::{ApiError, ApiResult};
 
-/// Extractor personalizado que valida automáticamente los DTOs
+/// Custom extractor that automatically validates DTOs
 /// Equivalente a FormRequest en Laravel
 pub struct ValidatedJson<T>(pub T);
 
@@ -27,7 +27,7 @@ where
                         match json.0.validate() {
                             Ok(_) => Ok(ValidatedJson(json.0)),
                             Err(errors) => {
-                                // Formatear errores de validación
+                                // Format validation errors
                                 let error_messages = errors
                                     .field_errors()
                                     .into_iter()

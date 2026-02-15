@@ -67,7 +67,7 @@ use crate::infrastructure::http::AuthUser;
 pub struct {}Controller;
 
 impl {}Controller {{
-    // Implementar métodos aquí
+    // Implement methods here
 }}
 "#,
         to_pascal_case(name),

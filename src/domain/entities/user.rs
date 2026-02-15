@@ -10,7 +10,7 @@ pub struct User {
     pub email: String,           // 🆕 String simple, no Value Object
     pub username: String,
     pub password_hash: String,
-    pub role: Role,              // ✅ Mantener - tiene lógica de negocio
+    pub role: Role,              // ✅ Keep - has business logic
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -32,7 +32,7 @@ impl User {
         }
     }
 
-    /// Crear usuario con role específico
+    /// Create user with specific role
     pub fn new_with_role(
         email: String,
         username: String,
@@ -66,7 +66,7 @@ impl User {
         self.role.can_moderate()
     }
 
-    /// Verificar si el usuario está activo
+    /// Check if user is active
     pub fn is_active(&self) -> bool {
         self.is_active
     }

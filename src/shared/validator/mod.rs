@@ -14,7 +14,7 @@ pub fn validate_strong_password(password: &str) -> Result<(), ValidationError> {
     }
 }
 
-/// Validador para usernames (solo alfanuméricos y guiones)
+/// Validator for usernames (only alphanumeric and dashes)
 pub fn validate_username(username: &str) -> Result<(), ValidationError> {
     let is_valid = username
         .chars()

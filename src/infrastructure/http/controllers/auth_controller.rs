@@ -10,7 +10,7 @@ use crate::shared::ValidatedJson;  // 🆕 Importar el extractor
 pub struct AuthController;
 
 impl AuthController {
-    /// Registro con validación automática
+    /// Register with automatic validation
     pub async fn register(
         service: web::Data<Arc<AuthService>>,
         req: ValidatedJson<RegisterUserRequest>,  // 🆕 Usa ValidatedJson en vez de web::Json
@@ -19,7 +19,7 @@ impl AuthController {
         Ok(HttpResponse::Created().json(response))
     }
 
-    /// Login con validación automática
+    /// Login with automatic validation
     pub async fn login(
         service: web::Data<Arc<AuthService>>,
         req: ValidatedJson<LoginRequest>,  // 🆕 Usa ValidatedJson

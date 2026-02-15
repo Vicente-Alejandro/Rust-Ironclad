@@ -22,7 +22,7 @@ impl AuthService {
 
     /// Registrar nuevo usuario
     pub async fn register(&self, request: RegisterUserRequest) -> Result<AuthResponse, ApiError> {
-        // ✅ VALIDACIÓN DE NEGOCIO: Email único
+        // ✅ BUSINESS VALIDATION: Unique email
         if self.user_repository.exists_by_email(&request.email).await? {
             return Err(ApiError::Conflict(
                 "User with this email already exists".to_string()
@@ -65,7 +65,7 @@ impl AuthService {
             .await?
             .ok_or(ApiError::Unauthorized)?;
 
-        // ✅ Verificar que esté activo
+        // ✅ Verify that user is active
         if !user.is_active() {
             return Err(ApiError::Forbidden("Account is disabled".to_string()));
         }
