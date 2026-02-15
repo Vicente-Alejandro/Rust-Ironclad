@@ -1,14 +1,12 @@
 use sqlx::PgPool;
-use sqlx::Row;
 use async_trait::async_trait;
 use chrono::Utc;
 
 use crate::domain::entities::User;
-use crate::domain::value_objects::Role;  // ✅ Solo Role, NO Email
+use crate::domain::value_objects::Role;
 use crate::errors::ApiError;
 use crate::interfaces::repositories::UserRepository;
 
-/// Concrete implementation of the repository for PostgreSQL
 pub struct PostgresUserRepository {
     pool: PgPool,
 }
@@ -25,10 +23,10 @@ impl UserRepository for PostgresUserRepository {
         let query = r#"
             INSERT INTO users (id, email, username, password_hash, role, is_active, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, email, username, password_hash, role, is_active, created_at, updated_at
+            RETURNING *
         "#;
-
-        let row = sqlx::query(query)
+        
+        let created_user = sqlx::query_as::<_, User>(query)
             .bind(&user.id)
             .bind(&user.email)
             .bind(&user.username)
@@ -41,106 +39,58 @@ impl UserRepository for PostgresUserRepository {
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        Ok(User {
-            id: row.get("id"),
-            email: row.get("email"),
-            username: row.get("username"),
-            password_hash: row.get("password_hash"),
-            role: Role::from_str(&row.get::<String, _>("role")),
-            is_active: row.get("is_active"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        })
+        Ok(created_user)
     }
 
     async fn get_by_id(&self, id: &str) -> Result<Option<User>, ApiError> {
-        let query = r#"
-            SELECT id, email, username, password_hash, role, is_active, created_at, updated_at
-            FROM users
-            WHERE id = $1
-        "#;
+        let query = "SELECT * FROM users WHERE id = $1";
 
-        let row = sqlx::query(query)
+        // ✅ Usar query_as
+        let user = sqlx::query_as::<_, User>(query)
             .bind(id)
             .fetch_optional(&self.pool)
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        Ok(row.map(|r| User {
-            id: r.get("id"),
-            email: r.get("email"),
-            username: r.get("username"),
-            password_hash: r.get("password_hash"),
-            role: Role::from_str(&r.get::<String, _>("role")),
-            is_active: r.get("is_active"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        }))
+        Ok(user)
     }
 
     async fn get_by_email(&self, email: &str) -> Result<Option<User>, ApiError> {
-        let query = r#"
-            SELECT id, email, username, password_hash, role, is_active, created_at, updated_at
-            FROM users
-            WHERE email = $1
-        "#;
+        let query = "SELECT * FROM users WHERE email = $1";
 
-        let row = sqlx::query(query)
+        // ✅ Usar query_as
+        let user = sqlx::query_as::<_, User>(query)
             .bind(email)
             .fetch_optional(&self.pool)
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        Ok(row.map(|r| User {
-            id: r.get("id"),
-            email: r.get("email"),
-            username: r.get("username"),
-            password_hash: r.get("password_hash"),
-            role: Role::from_str(&r.get::<String, _>("role")),
-            is_active: r.get("is_active"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        }))
+        Ok(user)
     }
 
     async fn get_all(&self) -> Result<Vec<User>, ApiError> {
-        let query = r#"
-            SELECT id, email, username, password_hash, role, is_active, created_at, updated_at
-            FROM users
-            ORDER BY created_at DESC
-        "#;
+        let query = "SELECT * FROM users ORDER BY created_at DESC";
 
-        let rows = sqlx::query(query)
+        // ✅ Usar query_as
+        let users = sqlx::query_as::<_, User>(query)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        Ok(rows
-            .iter()
-            .map(|r| User {
-                id: r.get("id"),
-                email: r.get("email"),
-                username: r.get("username"),
-                password_hash: r.get("password_hash"),
-                role: Role::from_str(&r.get::<String, _>("role")),
-                is_active: r.get("is_active"),
-                created_at: r.get("created_at"),
-                updated_at: r.get("updated_at"),
-            })
-            .collect())
+        Ok(users)
     }
 
     async fn get_paginated(&self, page: i32, per_page: i32) -> Result<(Vec<User>, i32), ApiError> {
         let offset = (page - 1) * per_page;
 
         let query = r#"
-            SELECT id, email, username, password_hash, role, is_active, created_at, updated_at
-            FROM users
+            SELECT * FROM users
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
         "#;
 
-        let rows = sqlx::query(query)
+        // ✅ Usar query_as
+        let users = sqlx::query_as::<_, User>(query)
             .bind(per_page)
             .bind(offset)
             .fetch_all(&self.pool)
@@ -149,27 +99,14 @@ impl UserRepository for PostgresUserRepository {
 
         let total = self.count().await?;
 
-        let users = rows
-            .iter()
-            .map(|r| User {
-                id: r.get("id"),
-                email: r.get("email"),
-                username: r.get("username"),
-                password_hash: r.get("password_hash"),
-                role: Role::from_str(&r.get::<String, _>("role")),
-                is_active: r.get("is_active"),
-                created_at: r.get("created_at"),
-                updated_at: r.get("updated_at"),
-            })
-            .collect();
-
         Ok((users, total))
     }
 
     async fn update(&self, user: &User) -> Result<(), ApiError> {
         let query = r#"
             UPDATE users
-            SET email = $1, username = $2, password_hash = $3, role = $4, is_active = $5, updated_at = $6
+            SET email = $1, username = $2, password_hash = $3, role = $4, 
+                is_active = $5, updated_at = $6
             WHERE id = $7
         "#;
 
@@ -203,23 +140,23 @@ impl UserRepository for PostgresUserRepository {
     async fn count(&self) -> Result<i32, ApiError> {
         let query = "SELECT COUNT(*) as count FROM users";
 
-        let row = sqlx::query(query)
+        let row: (i64,) = sqlx::query_as(query)
             .fetch_one(&self.pool)
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        Ok(row.get::<i32, _>("count"))
+        Ok(row.0 as i32)
     }
 
     async fn exists_by_email(&self, email: &str) -> Result<bool, ApiError> {
-        let query = "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1) as exists";
+        let query = "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)";
 
-        let row = sqlx::query(query)
+        let row: (bool,) = sqlx::query_as(query)
             .bind(email)
             .fetch_one(&self.pool)
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        Ok(row.get::<bool, _>("exists"))
+        Ok(row.0)
     }
 }

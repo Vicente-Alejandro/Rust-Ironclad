@@ -22,34 +22,27 @@ impl AuthService {
 
     /// Registrar nuevo usuario
     pub async fn register(&self, request: RegisterUserRequest) -> Result<AuthResponse, ApiError> {
-        // ✅ BUSINESS VALIDATION: Unique email
+        // Validate unique email
         if self.user_repository.exists_by_email(&request.email).await? {
-            return Err(ApiError::Conflict(
-                "User with this email already exists".to_string()
-            ));
+            return Err(ApiError::Conflict("User already exists".to_string()));
         }
-
-        // ✅ Hash password (seguridad)
-        let password_hash = hash_password(&request.password)?;
-
-        // ✅ Crear entidad User (sin conversiones innecesarias)
-        let user = User::new(
-            request.email,      // String directo
-            request.username,
-            password_hash,
-        );
-
-        // ✅ Persistir en base de datos
+        
+        let password_hash = hash_password(&request.password, &self.config)?;
+        
+        // Crear usuario
+        let user = User::new(request.email, request.username, password_hash);
+        
+        // Persistir
         let created_user = self.user_repository.create(&user).await?;
-
-        // ✅ Generar JWT
+        
+        // Generar token
         let token = create_token(
             &created_user.id,
-            &created_user.email,  // String directo
+            &created_user.email,
             &created_user.role.to_string(),
             &self.config,
         )?;
-
+        
         Ok(AuthResponse {
             user: created_user.to_response(),
             token,

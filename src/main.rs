@@ -74,6 +74,18 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to initialize PostgreSQL pool");
     tracing::info!("✅ PostgreSQL connected");
 
+    tracing::info!("🔥 Warming up connection pool...");
+    let warmup_start = std::time::Instant::now();
+
+    for i in 0..app_config.database.max_connections {
+        match sqlx::query("SELECT 1").fetch_one(&pg_pool).await {
+            Ok(_) => tracing::debug!("  ✓ Connection {} ready", i + 1),
+            Err(e) => tracing::warn!("  ✗ Connection {} failed: {}", i + 1, e),
+        }
+    }
+
+    tracing::info!("✅ Pool warmed up in {:?}", warmup_start.elapsed());
+
     // MongoDB (optional)
     if let Some(mongo_config) = &app_config.mongodb {
         match db::mongo::init_mongodb(mongo_config).await {
@@ -96,8 +108,10 @@ async fn main() -> std::io::Result<()> {
         Arc::new(app_config.clone()),
     ));
     
-    let user_service = Arc::new(UserService::new(user_repository.clone()));
-
+    let user_service = Arc::new(UserService::new(
+        user_repository.clone(),
+        Arc::new(app_config.clone()),  
+    ));
     // Prepare data for Actix
     let config_data = web::Data::new(app_config.clone());
     let auth_service_data = web::Data::new(auth_service);
@@ -109,6 +123,8 @@ async fn main() -> std::io::Result<()> {
     tracing::info!("🌐 Listening on http://{}", address);
     tracing::info!("🔗 Documentation: http://{}:{}/api/docs", app_config.server.host, app_config.server.port);
     tracing::info!("");
+
+    validate_security_config(&app_config);
 
     // ============================================
     // Start HTTP Server
@@ -145,3 +161,74 @@ async fn handle_not_found() -> actix_web::HttpResponse {
     }))
 }
 
+fn validate_security_config(config: &AppConfig) {
+    if config.bcrypt.cost < 4 {
+        tracing::error!(
+            "🔴 BCRYPT_COST={} is CRITICALLY LOW for security (minimum: 4)", 
+            config.bcrypt.cost
+        );
+    } else if config.bcrypt.cost < 8 {
+        tracing::warn!(
+            "⚠️  BCRYPT_COST={} is LOW for security (recommended: 8+)", 
+            config.bcrypt.cost
+        );
+    }
+
+    match config.server.env.as_str() {
+        "production" => {
+            if config.bcrypt.cost < 10 {
+                tracing::error!(
+                    "🔴 BCRYPT_COST={} is TOO LOW for production (minimum: 10, recommended: 12)", 
+                    config.bcrypt.cost
+                );
+                tracing::error!("   Production deployment blocked for security reasons");
+                std::process::exit(1);  
+            } else if config.bcrypt.cost >= 12 {
+                tracing::info!(
+                    "✅ BCRYPT_COST={} is IDEAL for production", 
+                    config.bcrypt.cost
+                );
+            } else {
+                tracing::warn!(
+                    "⚠️  BCRYPT_COST={} is acceptable for production (recommended: 12)", 
+                    config.bcrypt.cost
+                );
+            }
+
+            if config.jwt.secret.len() < 32 {
+                tracing::error!("🔴 JWT_SECRET is too short for production (minimum: 32 characters)");
+                std::process::exit(1);
+            }
+            if config.jwt.secret.contains("change") || config.jwt.secret.contains("secret") {
+                tracing::error!("🔴 JWT_SECRET appears to be a default value - change it!");
+                std::process::exit(1);
+            }
+        }
+        "staging" => {
+            if config.bcrypt.cost < 8 {
+                tracing::warn!(
+                    "⚠️  BCRYPT_COST={} is too low for staging (minimum: 8)", 
+                    config.bcrypt.cost
+                );
+            } else if config.bcrypt.cost >= 10 {
+                tracing::info!("✅ BCRYPT_COST={} is good for staging", config.bcrypt.cost);
+            }
+        }
+        "development" => {
+            if config.bcrypt.cost < 6 {
+                tracing::warn!(
+                    "⚠️  BCRYPT_COST={} may be too low even for development", 
+                    config.bcrypt.cost
+                );
+            } else {
+                tracing::info!(
+                    "ℹ️  BCRYPT_COST={} (development mode - faster hashing)", 
+                    config.bcrypt.cost
+                );
+            }
+        }
+        _ => {
+            tracing::warn!("⚠️  Unknown environment: {}", config.server.env);
+        }
+    }
+}

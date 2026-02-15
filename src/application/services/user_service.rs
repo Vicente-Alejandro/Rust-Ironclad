@@ -10,14 +10,19 @@ use crate::domain::value_objects::Role;
 use crate::errors::ApiError;
 use crate::interfaces::UserRepository;
 use crate::utils::auth::hash_password;
+use crate::config::AppConfig;
 
 pub struct UserService {
     user_repository: Arc<dyn UserRepository>,
+    config: Arc<AppConfig>,  // 🆕 Agregar config
 }
 
 impl UserService {
-    pub fn new(user_repository: Arc<dyn UserRepository>) -> Self {
-        Self { user_repository }
+    pub fn new(user_repository: Arc<dyn UserRepository>, config: Arc<AppConfig>) -> Self {
+        Self { 
+            user_repository,
+            config,  
+        }
     }
 
     /// Get user by ID
@@ -100,7 +105,7 @@ impl UserService {
 
         if let Some(password) = request.password {
             // Hash nuevo password
-            let password_hash = hash_password(&password)?;
+            let password_hash = hash_password(&password, &self.config)?;
             user.update_password_hash(password_hash);
         }
 

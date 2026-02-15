@@ -5,7 +5,7 @@ use crate::application::dtos::{LoginRequest, RegisterUserRequest};
 use crate::application::services::AuthService;
 use crate::errors::ApiResult;
 use crate::infrastructure::http::authentication::{AdminUser, AuthUser};
-use crate::shared::ValidatedJson;  // 🆕 Importar el extractor
+use crate::shared::ValidatedJson;  
 
 pub struct AuthController;
 
@@ -13,16 +13,16 @@ impl AuthController {
     /// Register with automatic validation
     pub async fn register(
         service: web::Data<Arc<AuthService>>,
-        req: ValidatedJson<RegisterUserRequest>,  // 🆕 Usa ValidatedJson en vez de web::Json
+        req: ValidatedJson<RegisterUserRequest>,  
     ) -> ApiResult<HttpResponse> {
-        let response = service.register(req.0).await?;  // 🆕 Usa req.0
+        let response = service.register(req.0).await?;  
         Ok(HttpResponse::Created().json(response))
     }
 
     /// Login with automatic validation
     pub async fn login(
         service: web::Data<Arc<AuthService>>,
-        req: ValidatedJson<LoginRequest>,  // 🆕 Usa ValidatedJson
+        req: ValidatedJson<LoginRequest>,  
     ) -> ApiResult<HttpResponse> {
         let response = service.login(req.0).await?;
         Ok(HttpResponse::Ok().json(response))

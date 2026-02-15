@@ -3,17 +3,42 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::domain::value_objects::Role;
 
+// Imports para SQLx
+use sqlx::postgres::PgRow;
+use sqlx::Row;
+
 /// User domain entity - Pure business logic
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
-    pub email: String,           // 🆕 String simple, no Value Object
+    pub email: String,
     pub username: String,
     pub password_hash: String,
-    pub role: Role,              // ✅ Keep - has business logic
+    pub role: Role,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl sqlx::FromRow<'_, PgRow> for User {
+    fn from_row(row: &PgRow) -> Result<Self, sqlx::Error> {
+        let role_str: String = row.try_get("role")?;
+        let role = Role::from_str(&role_str)  
+            .ok_or_else(|| sqlx::Error::Decode(
+                format!("Invalid role: {}", role_str).into()
+            ))?;
+
+        Ok(User {
+            id: row.try_get("id")?,
+            email: row.try_get("email")?,
+            username: row.try_get("username")?,
+            password_hash: row.try_get("password_hash")?,
+            role,
+            is_active: row.try_get("is_active")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
 }
 
 impl User {

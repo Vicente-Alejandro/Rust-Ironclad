@@ -8,6 +8,7 @@ pub struct AppConfig {
     pub database: DatabaseConfig,
     pub mongodb: Option<MongoDBConfig>,
     pub jwt: JwtConfig,
+    pub bcrypt: BcryptConfig,  
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +33,13 @@ pub struct MongoDBConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtConfig {
     pub secret: String,
-    pub expiration: i64, // en segundos
+    pub expiration: i64,
+}
+
+// 🆕 Nueva estructura para Bcrypt
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BcryptConfig {
+    pub cost: u32,
 }
 
 impl AppConfig {
@@ -69,6 +76,20 @@ impl AppConfig {
                 expiration: env::var("JWT_EXPIRATION")
                     .unwrap_or_else(|_| "86400".to_string())
                     .parse()?,
+            },
+            // Read BCRYPT_COST from .env with fallback based on ENVIRONMENT
+            bcrypt: BcryptConfig {
+                cost: env::var("BCRYPT_COST")
+                    .unwrap_or_else(|_| {
+                        match env::var("ENVIRONMENT").as_deref() {
+                            Ok("production") => "12",
+                            Ok("staging") => "10",
+                            _ => "8",
+                        }
+                        .to_string()
+                    })
+                    .parse()
+                    .unwrap_or(10),  
             },
         };
 

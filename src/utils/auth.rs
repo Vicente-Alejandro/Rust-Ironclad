@@ -1,10 +1,13 @@
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{hash, verify};
+use crate::config::AppConfig;
 use crate::errors::ApiError;
 use crate::domain::entities::user::Claims;
 
-/// Hash password with bcrypt
-pub fn hash_password(password: &str) -> Result<String, ApiError> {
-    hash(password, DEFAULT_COST)
+/// Hash password with bcrypt using cost from config
+pub fn hash_password(password: &str, config: &AppConfig) -> Result<String, ApiError> {
+    let cost = config.bcrypt.cost;
+    
+    hash(password, cost)
         .map_err(|e| ApiError::InternalServerError(format!("Error hashing password: {}", e)))
 }
 

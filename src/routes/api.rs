@@ -14,8 +14,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                 web::scope("/user")
                     .route("/profile", web::get().to(UserController::get_profile))
                     .route("/all", web::get().to(UserController::get_all_users))
-                    .route("all/nosession", web::get().to(UserController::get_all_users_no_session))
                     .route("/{id}", web::get().to(UserController::get_user))
-            ),
+            )
+            .service(
+                web::scope("/noauth")
+                    .route("/users", web::get().to(UserController::get_all_users_no_session))
+                    .route("/register", web::post().to(AuthController::register))
+            )
+            
     );
 }
