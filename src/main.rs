@@ -41,10 +41,13 @@ use tracing_subscriber;
 use std::sync::Arc;
 
 use config::AppConfig;
-use infrastructure::{AuthController, UserController};
-use infrastructure::PostgresUserRepository;
-use application::{AuthService, UserService};
-use interfaces::UserRepository;
+use infrastructure::{PostgresUserRepository, PostgresTestItemRepository};
+use application::{AuthService, UserService, TestItemService};
+use interfaces::{UserRepository, TestItemRepository};
+
+// use infrastructure::{*};
+// use application::{*};
+// use interfaces::{*};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -112,10 +115,16 @@ async fn main() -> std::io::Result<()> {
         user_repository.clone(),
         Arc::new(app_config.clone()),  
     ));
+
+    let test_item_repository: Arc<dyn TestItemRepository> =
+        Arc::new(PostgresTestItemRepository::new(pg_pool.clone()));
+    let test_item_service = Arc::new(TestItemService::new(test_item_repository));
+
     // Prepare data for Actix
     let config_data = web::Data::new(app_config.clone());
     let auth_service_data = web::Data::new(auth_service);
     let user_service_data = web::Data::new(user_service);
+    let test_item_service_data = web::Data::new(test_item_service);
     let pool_data = web::Data::new(pg_pool);
 
     let address = format!("{}:{}", app_config.server.host, app_config.server.port);
@@ -135,6 +144,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(pool_data.clone())
             .app_data(auth_service_data.clone())
             .app_data(user_service_data.clone())
+            .app_data(test_item_service_data.clone())
             .wrap(
                 Cors::default()
                     .allow_any_origin()

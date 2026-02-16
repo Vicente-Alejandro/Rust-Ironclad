@@ -414,6 +414,25 @@ furnished to do so, subject to the following conditions:
 ```
 
 ---
+To create new object
+src/
+├─ domain/entities/
+│  └─ test_item.rs          # 🆕 Entidad
+├─ application/
+│  ├─ dtos/
+│  │  └─ test_item_dto.rs   # 🆕 DTOs
+│  └─ services/
+│     └─ test_item_service.rs # 🆕 Lógica de negocio
+├─ infrastructure/
+│  ├─ http/controllers/
+│  │  └─ test_item_controller.rs # 🆕 HTTP handlers
+│  └─ persistence/postgres/
+│     └─ test_item_repository.rs # 🆕 Queries SQL
+├─ interfaces/repositories/
+│  └─ test_item_repository.rs # 🆕 Trait
+└─ migrations/
+   └─ 00X_create_test_items_table.sql # 🆕 Schema
+---
 
 <div align="center">
 

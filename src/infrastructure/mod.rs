@@ -3,6 +3,7 @@ pub mod persistence;
 
 // Persistence layer
 pub use persistence::PostgresUserRepository;
+pub use persistence::PostgresTestItemRepository;
 
 // HTTP layer - Authentication
 pub use http::authentication::{
@@ -17,4 +18,5 @@ pub use http::authentication::{
 pub use http::controllers::{
     AuthController,
     UserController,
+    TestItemController,
 };

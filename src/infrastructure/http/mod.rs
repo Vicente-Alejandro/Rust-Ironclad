@@ -14,4 +14,5 @@ pub use authentication::{
 pub use controllers::{
     AuthController,
     UserController,
+    TestItemController,
 };
