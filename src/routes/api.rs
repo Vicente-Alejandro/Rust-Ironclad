@@ -1,5 +1,5 @@
 use actix_web::web;
-use crate::infrastructure::http::{AuthController, UserController, TestItemController};
+use crate::infrastructure::http::{AuthController, UserController, TestItemController, HealthController};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -27,7 +27,16 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .route("/{id}", web::get().to(TestItemController::get_by_id))
                     .route("/{id}", web::put().to(TestItemController::update))
                     .route("/{id}", web::delete().to(TestItemController::delete))
-            ),
-            
+            )
+            // .service(
+            //     web::scope("/docs")
+            //         .route("", web::get().to(crate::infrastructure::http::DocsController::serve_docs))
+            // )
+            .service(
+                web::scope("/administration")
+                    .route("/health", web::get().to(crate::infrastructure::http::HealthController::health_check))
+                    .route("/uptime", web::get().to(crate::infrastructure::http::HealthController::uptime))
+                    // .route("/", web::get().to(crate::infrastructure::http::HealthController::system_info))
+            )
     );
 }

@@ -15,4 +15,5 @@ pub use controllers::{
     AuthController,
     UserController,
     TestItemController,
+    HealthController,
 };

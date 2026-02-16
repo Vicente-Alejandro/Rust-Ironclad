@@ -19,4 +19,5 @@ pub use http::controllers::{
     AuthController,
     UserController,
     TestItemController,
+    HealthController,
 };
