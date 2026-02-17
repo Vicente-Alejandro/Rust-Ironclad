@@ -36,7 +36,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                 web::scope("/administration")
                     .route("/health", web::get().to(crate::infrastructure::http::HealthController::health_check))
                     .route("/uptime", web::get().to(crate::infrastructure::http::HealthController::uptime))
-                    // .route("/", web::get().to(crate::infrastructure::http::HealthController::system_info))
+                    .route("/", web::get().to(crate::infrastructure::http::HealthController::system_info))
             )
     );
 }
