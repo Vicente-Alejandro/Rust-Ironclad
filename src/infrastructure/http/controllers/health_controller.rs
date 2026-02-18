@@ -1,37 +1,46 @@
 use actix_web::{web, HttpResponse};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use std::time::Duration;
-use sqlx::PgPool; 
-use crate::errors::ApiResult;
+use sqlx::{FromRow, PgPool};
 use std::sync::{Mutex, OnceLock};
-use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System, Disks};
+use sysinfo::{
+    Components, CpuRefreshKind, Disks, MemoryRefreshKind, Networks, Pid, ProcessRefreshKind,
+    RefreshKind, System,
+};
 
+use crate::errors::ApiResult;
 
-// --- STRUCTURES ---
+// --- UTILITY FUNCTIONS ---
 
-/// DTO for the Uptime response.
-/// Using a struct ensures the response is documentable (OpenAPI)
-/// and consistent, instead of a loose "JSON".
-#[derive(Serialize)]
-pub struct UptimeResponse {
-    /// Exact time the service started (ISO 8601)
-    pub started_at: String,
-    /// Total execution time in seconds (useful for metrics/alerts)
-    pub uptime_seconds: u64,
-    /// Human-readable representation (e.g., "2 days, 4 hours, 12 minutes")
-    pub uptime_human: String,
-    /// Current server timestamp (ISO 8601) for latency reference
-    pub check_time: String,
+/// Helper to convert raw bytes into human-readable strings (KB, MB, GB, TB).
+fn format_bytes(bytes: u64) -> String {
+    const UNIT: u64 = 1024;
+    if bytes < UNIT {
+        return format!("{} B", bytes);
+    }
+    let exp = (bytes as f64).ln() / (UNIT as f64).ln();
+    let pre = "KMGTPE"
+        .chars()
+        .nth(exp as usize - 1)
+        .unwrap_or('?');
+    format!("{:.2} {}B", (bytes as f64) / (UNIT as f64).powf(exp.floor()), pre)
 }
 
-// --- GLOBAL STATE ---
+/// Helper to format date into "Day-Month-Year Hour:Minute:Second"
+fn format_timestamp_human(date: DateTime<Utc>) -> String {
+    date.format("%d-%m-%Y %H:%M:%S UTC").to_string()
+}
 
-/// Stores the application start time.
-/// 'OnceLock' is the modern and thread-safe way in Rust (std) to initialize statics.
-static APP_START_TIME: OnceLock<DateTime<Utc>> = OnceLock::new();
+// --- DTOs (Data Transfer Objects) ---
 
-// --- DATA STRUCTURES ---
+#[derive(Serialize)]
+pub struct UptimeResponse {
+    pub started_at: String,
+    pub uptime_seconds: u64,
+    pub uptime_human: String,
+    pub check_time: String,
+    pub check_time_human: String, // NEW: Readable format
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -57,12 +66,12 @@ pub struct HealthResponse {
     pub components: Vec<ComponentHealth>,
 }
 
-// --- DTOs (Data Transfer Objects) ---
+// --- SYSTEM INFO STRUCTURES ---
 
 #[derive(Serialize)]
 pub struct OsInfo {
-    pub platform: String,     // e.g., "Linux", "macOS"
-    pub distro: String,       // e.g., "Ubuntu 22.04"
+    pub platform: String,
+    pub distro: String,
     pub hostname: String,
     pub kernel_version: String,
     pub num_cpus: usize,
@@ -71,8 +80,11 @@ pub struct OsInfo {
 #[derive(Serialize)]
 pub struct MemoryInfo {
     pub total_bytes: u64,
+    pub total_human: String,
     pub used_bytes: u64,
+    pub used_human: String,
     pub free_bytes: u64,
+    pub free_human: String,
     pub used_percentage: f32,
 }
 
@@ -81,61 +93,264 @@ pub struct CpuInfo {
     pub global_usage_percent: f32,
     pub brand: String,
     pub frequency_mhz: u64,
+    pub temperature_celsius: Option<f32>,
 }
 
 #[derive(Serialize)]
 pub struct DiskInfo {
-    pub total_space_bytes: u64,
-    pub available_space_bytes: u64,
+    pub name: String,
     pub mount_point: String,
+    pub file_system: String,
+    pub total_space_bytes: u64,
+    pub total_space_human: String,
+    pub available_space_bytes: u64,
+    pub available_space_human: String,
+    pub used_percentage: f32,
 }
 
 #[derive(Serialize)]
-pub struct SystemInfoResponse {
+pub struct NetworkInfo {
+    pub total_rx_bytes: u64,
+    pub total_rx_human: String,
+    pub total_tx_bytes: u64,
+    pub total_tx_human: String,
+}
+
+#[derive(Serialize)]
+pub struct AppTelemetry {
+    pub app_memory_usage_bytes: u64,
+    pub app_memory_human: String,
+    pub app_cpu_usage_percent: f32,
+    pub app_uptime_seconds: u64,
+}
+
+#[derive(Serialize)]
+pub struct DatabaseTelemetry {
+    pub status: String,
+    pub database_name: String,
+    pub size_bytes: i64,
+    pub size_human: String,
+    pub engine_version: String,
+    pub server_address: Option<String>,
+    pub data_directory: Option<String>, // NEW: Physical Path on Disk
+}
+
+#[derive(Serialize)]
+pub struct FullSystemReport {
+    pub host: String,
+    pub check_time: String,
+    pub check_time_human: String, // NEW: Readable format
     pub os_info: OsInfo,
     pub cpu_info: CpuInfo,
     pub memory_info: MemoryInfo,
     pub disks_info: Vec<DiskInfo>,
+    pub network_info: NetworkInfo,
+    pub application: AppTelemetry,
+    pub database: DatabaseTelemetry,
 }
 
-// --- SHARED STATE ---
+// --- GLOBAL STATE ---
 
-/// Global instance of the System monitor.
-/// We use a Mutex because `sysinfo::System` is mutable (it needs to update its internal counters).
-/// We use OnceLock to initialize it lazily and safely.
+static APP_START_TIME: OnceLock<DateTime<Utc>> = OnceLock::new();
 static SYSTEM_MONITOR: OnceLock<Mutex<System>> = OnceLock::new();
+
+// --- CONTROLLER IMPLEMENTATION ---
 
 pub struct HealthController;
 
 impl HealthController {
     
-    /// Professional Uptime Endpoint.
-    /// Initializes the reference time on the first call if it doesn't exist,
-    /// and calculates the difference against the current UTC time.
+    /// Endpoint 1: Professional Uptime
     pub async fn uptime() -> ApiResult<HttpResponse> {
-        // 1. Get or initialize the start time.
-        // In a real environment, this is ideally initialized in 'main.rs',
-        // but here we use 'get_or_init' to ensure it works autonomously.
         let start_time = *APP_START_TIME.get_or_init(Utc::now);
         let current_time = Utc::now();
-
-        // 2. Calculate duration
-        // We use signed_duration_since for safety, although it will always be positive here.
         let duration = current_time.signed_duration_since(start_time);
         
-        // 3. Format the response
         let response = UptimeResponse {
             started_at: start_time.to_rfc3339(),
             uptime_seconds: duration.num_seconds() as u64,
             uptime_human: Self::format_duration(duration),
             check_time: current_time.to_rfc3339(),
+            check_time_human: format_timestamp_human(current_time),
         };
 
         Ok(HttpResponse::Ok().json(response))
     }
 
-    /// Private helper to format the duration in a readable way.
-    /// Splits seconds into days, hours, minutes, and seconds.
+    /// Endpoint 2: Full System Info (Real-time + DB + Human Readable)
+    pub async fn system_info(pool: web::Data<PgPool>) -> ApiResult<HttpResponse> {
+        
+        // 1. Trigger Async DB Check immediately
+        let db_future = Self::get_database_details(&pool);
+
+        // 2. Initialize or Get System Monitor
+        let mutex = SYSTEM_MONITOR.get_or_init(|| {
+            // Note: In sysinfo 0.30+, specific components are decoupled.
+            // System only manages CPU, Memory and Processes here.
+            let mut sys = System::new_with_specifics(
+                RefreshKind::new()
+                    .with_cpu(CpuRefreshKind::everything())
+                    .with_memory(MemoryRefreshKind::everything())
+                    .with_processes(ProcessRefreshKind::everything())
+            );
+            // Wait for CPU baseline
+            std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+            sys.refresh_all(); 
+            Mutex::new(sys)
+        });
+
+        // 3. Lock and Refresh Data
+        let mut sys = mutex.lock().map_err(|_| {
+            crate::errors::ApiError::InternalServerError("System monitor lock failed".to_string())
+        })?;
+
+        // Refresh only what System struct controls
+        sys.refresh_cpu();
+        sys.refresh_memory();
+        // sys.refresh_networks() & sys.refresh_components() REMOVED (Handled separately below)
+        
+        // Refresh specific process (Our App)
+        let current_pid = Pid::from_u32(std::process::id());
+        sys.refresh_process(current_pid);
+
+        // --- GATHER DATA ---
+
+        // A. CPU (Stats + Temp)
+        let global_cpu = sys.global_cpu_info();
+        
+        // Instantiate Components to find temperature sensors
+        let components = Components::new_with_refreshed_list();
+        let cpu_temp = components.iter()
+            .find(|c| c.label().to_lowercase().contains("cpu") || c.label().to_lowercase().contains("core"))
+            .map(|c| c.temperature());
+
+        let cpu_info = CpuInfo {
+            global_usage_percent: global_cpu.cpu_usage(),
+            brand: global_cpu.brand().to_string(),
+            frequency_mhz: global_cpu.frequency(),
+            temperature_celsius: cpu_temp,
+        };
+
+        // B. Memory
+        let total_mem = sys.total_memory();
+        let used_mem = sys.used_memory();
+        let memory_info = MemoryInfo {
+            total_bytes: total_mem,
+            total_human: format_bytes(total_mem),
+            used_bytes: used_mem,
+            used_human: format_bytes(used_mem),
+            free_bytes: sys.free_memory(),
+            free_human: format_bytes(sys.free_memory()),
+            used_percentage: if total_mem > 0 { (used_mem as f32 / total_mem as f32) * 100.0 } else { 0.0 },
+        };
+
+        // C. OS
+        let os_info = OsInfo {
+            platform: System::name().unwrap_or_else(|| "Unknown".to_string()),
+            distro: System::long_os_version().unwrap_or_else(|| "Unknown".to_string()),
+            hostname: System::host_name().unwrap_or_else(|| "localhost".to_string()),
+            kernel_version: System::kernel_version().unwrap_or_else(|| "Unknown".to_string()),
+            num_cpus: sys.cpus().len(),
+        };
+
+        // D. Disks (Iterate ALL disks)
+        // Instantiate Disks to get storage info
+        let disks_list = Disks::new_with_refreshed_list();
+        let disks_info: Vec<DiskInfo> = disks_list.iter().map(|disk| {
+            let total = disk.total_space();
+            let available = disk.available_space();
+            let used = total - available;
+            let percent = if total > 0 { (used as f32 / total as f32) * 100.0 } else { 0.0 };
+
+            DiskInfo {
+                name: disk.name().to_string_lossy().to_string(),
+                mount_point: disk.mount_point().to_string_lossy().to_string(),
+                file_system: disk.file_system().to_string_lossy().to_string(),
+                total_space_bytes: total,
+                total_space_human: format_bytes(total),
+                available_space_bytes: available,
+                available_space_human: format_bytes(available),
+                used_percentage: percent,
+            }
+        }).collect();
+
+        // E. Network
+        // Instantiate Networks to get traffic stats
+        let networks = Networks::new_with_refreshed_list();
+        let (rx, tx) = networks.iter().fold((0, 0), |acc, (_, data)| {
+            (acc.0 + data.total_received(), acc.1 + data.total_transmitted())
+        });
+        let network_info = NetworkInfo {
+            total_rx_bytes: rx,
+            total_rx_human: format_bytes(rx),
+            total_tx_bytes: tx,
+            total_tx_human: format_bytes(tx),
+        };
+
+        // F. Application Telemetry
+        let app_telemetry = if let Some(process) = sys.process(current_pid) {
+            AppTelemetry {
+                app_memory_usage_bytes: process.memory(),
+                app_memory_human: format_bytes(process.memory()),
+                app_cpu_usage_percent: process.cpu_usage(),
+                app_uptime_seconds: process.run_time(),
+            }
+        } else {
+            AppTelemetry { 
+                app_memory_usage_bytes: 0, 
+                app_memory_human: "0 B".to_string(), 
+                app_cpu_usage_percent: 0.0, 
+                app_uptime_seconds: 0 
+            }
+        };
+
+        // G. Database (Await result)
+        let database_telemetry = db_future.await;
+
+        // Final Report
+        let current_time = Utc::now();
+        let report = FullSystemReport {
+            host: System::host_name().unwrap_or_default(),
+            check_time: current_time.to_rfc3339(),
+            check_time_human: format_timestamp_human(current_time),
+            os_info,
+            cpu_info,
+            memory_info,
+            disks_info,
+            network_info,
+            application: app_telemetry,
+            database: database_telemetry,
+        };
+
+        Ok(HttpResponse::Ok().json(report))
+    }
+
+    /// Endpoint 3: Health Check (Readiness)
+    pub async fn health_check(pool: web::Data<PgPool>) -> ApiResult<HttpResponse> {
+        let db_check = Self::check_database_simple(&pool).await;
+        let components = vec![db_check];
+        
+        let global_status = if components.iter().any(|c| matches!(c.status, HealthStatus::Down)) {
+            HealthStatus::Down
+        } else {
+            HealthStatus::Up
+        };
+
+        let response_body = HealthResponse {
+            status: global_status,
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            timestamp: Utc::now().to_rfc3339(),
+            components,
+        };
+
+        match response_body.status {
+            HealthStatus::Up => Ok(HttpResponse::Ok().json(response_body)),
+            _ => Ok(HttpResponse::ServiceUnavailable().json(response_body)),
+        }
+    }
+
+    // --- PRIVATE HELPERS ---
+
     fn format_duration(duration: chrono::Duration) -> String {
         let total_seconds = duration.num_seconds();
         let days = total_seconds / 86400;
@@ -152,128 +367,8 @@ impl HealthController {
         }
     }
 
-    /// Professional System Info Endpoint.
-    /// Returns real-time hardware telemetry (CPU, RAM, Disk).
-    pub async fn system_info() -> ApiResult<HttpResponse> {
-        // 1. Get access to the global system monitor
-        let mutex = SYSTEM_MONITOR.get_or_init(|| {
-            // Initialize with specific refresh configuration to optimize performance.
-            // We don't want to refresh processes or networks on every call, just CPU and RAM.
-            let mut sys = System::new_with_specifics(
-                RefreshKind::new()
-                    .with_cpu(CpuRefreshKind::everything())
-                    .with_memory(MemoryRefreshKind::everything())
-            );
-            // First refresh to establish a baseline for CPU calculation
-            std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
-            sys.refresh_cpu();
-            Mutex::new(sys)
-        });
-
-        // 2. Lock the mutex to update the stats safely
-        let mut sys = mutex.lock().map_err(|_| {
-            // In a real scenario, handle poisoned mutex gracefully
-            crate::errors::ApiError::InternalServerError("System monitor lock failed".to_string())
-        })?;
-
-        // 3. Refresh vital components
-        // Only refresh what we need to keep latency low.
-        sys.refresh_cpu(); 
-        sys.refresh_memory();
-        // Disks are usually refreshed less frequently or on a new instance, 
-        // but for this example, we can use the `Disks` struct separately.
-        
-        // 4. Construct CPU Data
-        let global_cpu = sys.global_cpu_info();
-        let cpu_info = CpuInfo {
-            global_usage_percent: global_cpu.cpu_usage(),
-            brand: global_cpu.brand().to_string(),
-            frequency_mhz: global_cpu.frequency(),
-        };
-
-        // 5. Construct Memory Data
-        let total_mem = sys.total_memory();
-        let used_mem = sys.used_memory();
-        let memory_info = MemoryInfo {
-            total_bytes: total_mem,
-            used_bytes: used_mem,
-            free_bytes: sys.free_memory(),
-            // Avoid division by zero
-            used_percentage: if total_mem > 0 {
-                (used_mem as f32 / total_mem as f32) * 100.0
-            } else {
-                0.0
-            },
-        };
-
-        // 6. Construct OS Data (Static mostly)
-        let os_info = OsInfo {
-            platform: System::name().unwrap_or_else(|| "Unknown".to_string()),
-            distro: System::long_os_version().unwrap_or_else(|| "Unknown".to_string()),
-            hostname: System::host_name().unwrap_or_else(|| "localhost".to_string()),
-            kernel_version: System::kernel_version().unwrap_or_else(|| "Unknown".to_string()),
-            num_cpus: sys.cpus().len(),
-        };
-
-        // 7. Construct Disk Data
-        // Disks operations can be heavy, usually, we construct a new list
-        let disks_list = Disks::new_with_refreshed_list();
-        let disks_info: Vec<DiskInfo> = disks_list.iter().map(|disk| {
-            DiskInfo {
-                total_space_bytes: disk.total_space(),
-                available_space_bytes: disk.available_space(),
-                mount_point: disk.mount_point().to_string_lossy().to_string(),
-            }
-        }).collect();
-
-        // 8. Final Response
-        let response = SystemInfoResponse {
-            os_info,
-            cpu_info,
-            memory_info,
-            disks_info,
-        };
-
-        Ok(HttpResponse::Ok().json(response))
-    }
-
-    /// Health Check - Readiness Probe
-    /// Receives the connection pool injected by Actix (web::Data<PgPool>)
-    pub async fn health_check(pool: web::Data<PgPool>) -> ApiResult<HttpResponse> {
-        
-        // 1. Real Database Verification
-        // We pass a reference to the pool to avoid consuming it
-        let db_check = Self::check_database(&pool).await;
-
-        // Here you would add other checks in the future (Redis, external API, etc.)
-        let components = vec![db_check];
-
-        // 2. Determine global status
-        let global_status = if components.iter().any(|c| matches!(c.status, HealthStatus::Down)) {
-            HealthStatus::Down
-        } else {
-            HealthStatus::Up
-        };
-
-        let response_body = HealthResponse {
-            status: global_status,
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            timestamp: Utc::now().to_rfc3339(),
-            components,
-        };
-
-        // 3. HTTP Response
-        match response_body.status {
-            HealthStatus::Up => Ok(HttpResponse::Ok().json(response_body)),
-            // 503 indicates to the Load Balancer not to send traffic because the DB is down
-            _ => Ok(HttpResponse::ServiceUnavailable().json(response_body)),
-        }
-    }
-
-    /// Performs a real ping to the database using "SELECT 1"
-    /// This is the industry standard practice for verifying SQL connectivity.
-    async fn check_database(pool: &PgPool) -> ComponentHealth {
-        // We execute a trivial query. If this passes, authentication and network are working.
+    /// Simple ping for Readiness Probe
+    async fn check_database_simple(pool: &PgPool) -> ComponentHealth {
         match sqlx::query("SELECT 1").execute(pool).await {
             Ok(_) => ComponentHealth {
                 name: "postgres_primary".to_string(),
@@ -283,7 +378,51 @@ impl HealthController {
             Err(e) => ComponentHealth {
                 name: "postgres_primary".to_string(),
                 status: HealthStatus::Down,
-                error: Some(e.to_string()), // Captures the actual error (timeout, auth failure, etc.)
+                error: Some(e.to_string()),
+            },
+        }
+    }
+
+    /// Detailed DB Stats for System Info
+    async fn get_database_details(pool: &PgPool) -> DatabaseTelemetry {
+        #[derive(FromRow)]
+        struct DbRow {
+            current_db: String,
+            size: i64,
+            version: String,
+            server_addr: Option<String>,
+            data_dir: Option<String>, // Captures 'data_directory' setting
+        }
+
+        // Query to get size, version, server IP, and physical data directory
+        // We use current_setting('data_directory') to find the disk path.
+        let query = r#"
+            SELECT 
+                current_database() as current_db,
+                pg_database_size(current_database()) as size,
+                version() as version,
+                inet_server_addr()::text as server_addr,
+                current_setting('data_directory') as data_dir
+        "#;
+
+        match sqlx::query_as::<_, DbRow>(query).fetch_one(pool).await {
+            Ok(row) => DatabaseTelemetry {
+                status: "Connected".to_string(),
+                database_name: row.current_db,
+                size_bytes: row.size,
+                size_human: format_bytes(row.size as u64),
+                engine_version: row.version,
+                server_address: row.server_addr,
+                data_directory: row.data_dir,
+            },
+            Err(e) => DatabaseTelemetry {
+                status: "Error".to_string(),
+                database_name: "Unknown".to_string(),
+                size_bytes: 0,
+                size_human: "0 B".to_string(),
+                engine_version: format!("Check failed: {}", e),
+                server_address: None,
+                data_directory: None,
             },
         }
     }
