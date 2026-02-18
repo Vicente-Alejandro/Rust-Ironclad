@@ -434,6 +434,15 @@ src/
    └─ 00X_create_test_items_table.sql # 🆕 Schema
 ---
 
++++
+To use CLI commands:
+
+cargo run --bin ironclad -- $arg
+
+Example:
+cargo run --bin ironclad -- test
++++
+
 <div align="center">
 
 ### Made with ❤️ in Rust

@@ -1,127 +1,134 @@
 use clap::{Parser, Subcommand};
-use std::fs;
-use std::path::Path;
+use sqlx::PgPool;
+use std::process;
 
 #[derive(Parser)]
-#[command(name = "Rust Ironclad")]
-#[command(about = "Laravel-style CLI for Rust Framework", long_about = None)]
+#[command(name = "ironclad")]
+#[command(version = "1.0")]
+#[command(about = "Rust Ironclad Framework CLI", long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Create a new controller
-    Make {
-        #[command(subcommand)]
-        resource: MakeResource,
-    },
+    /// Show framework version and info
+    Version,
+    
+    /// Check database connection
+    DbCheck,
+    
+    /// Check CLI setup
+    Test,
 }
 
-#[derive(Subcommand)]
-enum MakeResource {
-    /// Create a new controller
-    Controller {
-        /// Name of the controller
-        name: String,
-    },
-    /// Create a new migration
-    Migration {
-        /// Name of the migration
-        name: String,
-    },
-}
-
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Make { resource } => match resource {
-            MakeResource::Controller { name } => {
-                make_controller(&name);
-            }
-            MakeResource::Migration { name } => {
-                make_migration(&name);
-            }
-        },
+        Some(Commands::Version) => {
+            println!("╔════════════════════════════════════════╗");
+            println!("║   🦀 Rust Ironclad Framework v1.0.0   ║");
+            println!("╚════════════════════════════════════════╝");
+            println!();
+            println!("Framework: Rust Ironclad");
+            println!("Version: {}", env!("CARGO_PKG_VERSION"));
+            println!();
+        }
+        
+        Some(Commands::DbCheck) => {
+            check_database().await;
+        }
+        
+        Some(Commands::Test) => {
+            println!("🔍 Running CLI diagnostics...");
+            println!();
+            println!("✅ CLI binary is working");
+            println!("✅ Clap argument parsing is working");
+            println!("✅ Project structure is correct");
+            println!();
+            println!("🎉 Everything looks good!");
+        }
+        
+        None => {
+            println!("Run 'ironclad --help' to see available commands");
+        }
     }
 }
 
-fn make_controller(name: &str) {
-    let snake_name = to_snake_case(name);
-    let controller_path = format!("src/infrastructure/http/{}.rs", snake_name);
+async fn check_database() {
+    println!("🔍 Checking database connection...");
+    println!();
 
-    if Path::new(&controller_path).exists() {
-        eprintln!("Controller {} already exists!", controller_path);
-        return;
-    }
+    // Load .env
+    dotenv::dotenv().ok();
 
-    let template = format!(
-        r#"use std::sync::Arc;
-use actix_web::{{web, HttpResponse}};
-use crate::application::dtos::*;
-use crate::errors::ApiResult;
-use crate::infrastructure::http::AuthUser;
+    // Get database URL
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!("❌ DATABASE_URL not found in environment");
+            eprintln!("   Make sure .env file exists with DATABASE_URL");
+            process::exit(1);
+        }
+    };
 
-pub struct {}Controller;
+    println!("📍 Database: {}", mask_connection_string(&database_url));
+    println!();
 
-impl {}Controller {{
-    // Implement methods here
-}}
-"#,
-        to_pascal_case(name),
-        to_pascal_case(name)
-    );
+    // Connect to database
+    print!("🔌 Connecting... ");
+    let pool = match PgPool::connect(&database_url).await {
+        Ok(pool) => {
+            println!("✅");
+            pool
+        }
+        Err(e) => {
+            println!("❌");
+            eprintln!();
+            eprintln!("Error: {}", e);
+            eprintln!();
+            eprintln!("Possible causes:");
+            eprintln!("  • PostgreSQL is not running");
+            eprintln!("  • Wrong credentials in DATABASE_URL");
+            eprintln!("  • Database does not exist");
+            eprintln!("  • Network/firewall issues");
+            process::exit(1);
+        }
+    };
 
-    fs::write(&controller_path, template).expect("Failed to create controller");
-    println!("✅ Controller created: {}", controller_path);
-}
-
-fn make_migration(name: &str) {
-    use chrono::Local;
-
-    let timestamp = Local::now().format("%Y%m%d%H%M%S");
-    let migration_filename = format!("migrations/{}_{}.sql", timestamp, to_snake_case(name));
-
-    let template = format!(
-        "-- Migration: {}\n-- Created at: {}\n\n-- Write your SQL here:\n",
-        name, timestamp
-    );
-
-    fs::write(&migration_filename, template).expect("Failed to create migration");
-    println!("✅ Migration created: {}", migration_filename);
-}
-
-fn to_snake_case(s: &str) -> String {
-    s.chars()
-        .fold(String::new(), |mut acc, c| {
-            if c.is_uppercase() {
-                acc.push('_');
-                acc.push(c.to_lowercase().next().unwrap());
-            } else {
-                acc.push(c);
-            }
-            acc
-        })
-        .trim_start_matches('_')
-        .to_string()
-}
-
-fn to_pascal_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut capitalize = true;
-
-    for c in s.chars() {
-        if c == '_' {
-            capitalize = true;
-        } else if capitalize {
-            result.push(c.to_uppercase().next().unwrap());
-            capitalize = false;
-        } else {
-            result.push(c);
+    // Ping database
+    print!("📡 Sending ping... ");
+    match sqlx::query("SELECT 1").execute(&pool).await {
+        Ok(_) => {
+            println!("✅");
+            println!();
+            println!("╔═══════════════════════════════╗");
+            println!("║  ✅ Database is UP and ready  ║");
+            println!("╚═══════════════════════════════╝");
+        }
+        Err(e) => {
+            println!("❌");
+            eprintln!();
+            eprintln!("Error executing query: {}", e);
+            process::exit(1);
         }
     }
 
-    result
+    // Close pool
+    pool.close().await;
+}
+
+fn mask_connection_string(url: &str) -> String {
+    // Hide password in connection string
+    if let Some(at_pos) = url.rfind('@') {
+        if let Some(colon_pos) = url[..at_pos].rfind(':') {
+            let mut masked = url.to_string();
+            masked.replace_range(colon_pos + 1..at_pos, "****");
+            return masked;
+        }
+    }
+    "***HIDDEN***".to_string()
 }

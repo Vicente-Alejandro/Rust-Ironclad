@@ -1859,7 +1859,7 @@ dependencies = [
  "pbkdf2",
  "percent-encoding",
  "rand 0.8.5",
- "rustc_version_runtime",
+ "rustc_version_runtime 0.2.1",
  "rustls",
  "rustls-pemfile",
  "serde",
@@ -2569,6 +2569,16 @@ checksum = "d31b7153270ebf48bf91c65ae5b0c00e749c4cfad505f66530ac74950249582f"
 dependencies = [
  "rustc_version 0.2.3",
  "semver 0.9.0",
+]
+
+[[package]]
+name = "rustc_version_runtime"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2dd18cd2bae1820af0b6ad5e54f4a51d0f3fcc53b05f845675074efcc7af071d"
+dependencies = [
+ "rustc_version 0.4.1",
+ "semver 1.0.27",
 ]
 
 [[package]]
@@ -3299,6 +3309,7 @@ dependencies = [
  "mockall",
  "mongodb",
  "reqwest",
+ "rustc_version_runtime 0.3.0",
  "serde",
  "serde_json",
  "sqlx",
