@@ -6,6 +6,10 @@ edition = "2021"
 description = "MVC framework for Rust artisans."
 
 [dependencies]
+
+# System Information (optional)
+sysinfo = "0.30"
+
 # Web Framework
 actix-web = "4.4"
 actix-rt = "2.9"

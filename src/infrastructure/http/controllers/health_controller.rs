@@ -1,10 +1,12 @@
 use actix_web::{web, HttpResponse};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use std::sync::OnceLock;
 use std::time::Duration;
-use sqlx::PgPool; // Important for the pool data type
+use sqlx::PgPool; 
 use crate::errors::ApiResult;
+use std::sync::{Mutex, OnceLock};
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind, System, Disks};
+
 
 // --- STRUCTURES ---
 
@@ -55,6 +57,54 @@ pub struct HealthResponse {
     pub components: Vec<ComponentHealth>,
 }
 
+// --- DTOs (Data Transfer Objects) ---
+
+#[derive(Serialize)]
+pub struct OsInfo {
+    pub platform: String,     // e.g., "Linux", "macOS"
+    pub distro: String,       // e.g., "Ubuntu 22.04"
+    pub hostname: String,
+    pub kernel_version: String,
+    pub num_cpus: usize,
+}
+
+#[derive(Serialize)]
+pub struct MemoryInfo {
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub free_bytes: u64,
+    pub used_percentage: f32,
+}
+
+#[derive(Serialize)]
+pub struct CpuInfo {
+    pub global_usage_percent: f32,
+    pub brand: String,
+    pub frequency_mhz: u64,
+}
+
+#[derive(Serialize)]
+pub struct DiskInfo {
+    pub total_space_bytes: u64,
+    pub available_space_bytes: u64,
+    pub mount_point: String,
+}
+
+#[derive(Serialize)]
+pub struct SystemInfoResponse {
+    pub os_info: OsInfo,
+    pub cpu_info: CpuInfo,
+    pub memory_info: MemoryInfo,
+    pub disks_info: Vec<DiskInfo>,
+}
+
+// --- SHARED STATE ---
+
+/// Global instance of the System monitor.
+/// We use a Mutex because `sysinfo::System` is mutable (it needs to update its internal counters).
+/// We use OnceLock to initialize it lazily and safely.
+static SYSTEM_MONITOR: OnceLock<Mutex<System>> = OnceLock::new();
+
 pub struct HealthController;
 
 impl HealthController {
@@ -102,14 +152,89 @@ impl HealthController {
         }
     }
 
-    // TODO: Add a more comprehensive system info endpoint in the future that includes CPU, memory, disk usage, etc.
+    /// Professional System Info Endpoint.
+    /// Returns real-time hardware telemetry (CPU, RAM, Disk).
     pub async fn system_info() -> ApiResult<HttpResponse> {
-        // Placeholder for actual system info logic
-        Ok(HttpResponse::Ok().json(serde_json::json!({
-            "os": "Linux",
-            "version": "1.0.0",
-            "status": "operational"
-        })))
+        // 1. Get access to the global system monitor
+        let mutex = SYSTEM_MONITOR.get_or_init(|| {
+            // Initialize with specific refresh configuration to optimize performance.
+            // We don't want to refresh processes or networks on every call, just CPU and RAM.
+            let mut sys = System::new_with_specifics(
+                RefreshKind::new()
+                    .with_cpu(CpuRefreshKind::everything())
+                    .with_memory(MemoryRefreshKind::everything())
+            );
+            // First refresh to establish a baseline for CPU calculation
+            std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
+            sys.refresh_cpu();
+            Mutex::new(sys)
+        });
+
+        // 2. Lock the mutex to update the stats safely
+        let mut sys = mutex.lock().map_err(|_| {
+            // In a real scenario, handle poisoned mutex gracefully
+            crate::errors::ApiError::InternalServerError("System monitor lock failed".to_string())
+        })?;
+
+        // 3. Refresh vital components
+        // Only refresh what we need to keep latency low.
+        sys.refresh_cpu(); 
+        sys.refresh_memory();
+        // Disks are usually refreshed less frequently or on a new instance, 
+        // but for this example, we can use the `Disks` struct separately.
+        
+        // 4. Construct CPU Data
+        let global_cpu = sys.global_cpu_info();
+        let cpu_info = CpuInfo {
+            global_usage_percent: global_cpu.cpu_usage(),
+            brand: global_cpu.brand().to_string(),
+            frequency_mhz: global_cpu.frequency(),
+        };
+
+        // 5. Construct Memory Data
+        let total_mem = sys.total_memory();
+        let used_mem = sys.used_memory();
+        let memory_info = MemoryInfo {
+            total_bytes: total_mem,
+            used_bytes: used_mem,
+            free_bytes: sys.free_memory(),
+            // Avoid division by zero
+            used_percentage: if total_mem > 0 {
+                (used_mem as f32 / total_mem as f32) * 100.0
+            } else {
+                0.0
+            },
+        };
+
+        // 6. Construct OS Data (Static mostly)
+        let os_info = OsInfo {
+            platform: System::name().unwrap_or_else(|| "Unknown".to_string()),
+            distro: System::long_os_version().unwrap_or_else(|| "Unknown".to_string()),
+            hostname: System::host_name().unwrap_or_else(|| "localhost".to_string()),
+            kernel_version: System::kernel_version().unwrap_or_else(|| "Unknown".to_string()),
+            num_cpus: sys.cpus().len(),
+        };
+
+        // 7. Construct Disk Data
+        // Disks operations can be heavy, usually, we construct a new list
+        let disks_list = Disks::new_with_refreshed_list();
+        let disks_info: Vec<DiskInfo> = disks_list.iter().map(|disk| {
+            DiskInfo {
+                total_space_bytes: disk.total_space(),
+                available_space_bytes: disk.available_space(),
+                mount_point: disk.mount_point().to_string_lossy().to_string(),
+            }
+        }).collect();
+
+        // 8. Final Response
+        let response = SystemInfoResponse {
+            os_info,
+            cpu_info,
+            memory_info,
+            disks_info,
+        };
+
+        Ok(HttpResponse::Ok().json(response))
     }
 
     /// Health Check - Readiness Probe
