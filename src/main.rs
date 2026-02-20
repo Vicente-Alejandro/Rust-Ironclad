@@ -32,12 +32,17 @@ mod cli;
 // Database (legacy - initialization only)
 mod db;
 
+// Middleware
+mod middleware;
+
 // Routes configuration
 mod routes;
 
+use middleware::MaintenanceMode;
 use actix_web::{middleware::Logger, web, App, HttpServer};
 use actix_cors::Cors;
 use tracing_subscriber;
+use tracing_actix_web::TracingLogger;
 use std::sync::Arc;
 
 use config::AppConfig;
@@ -56,11 +61,39 @@ async fn main() -> std::io::Result<()> {
     // ============================================
     let app_config = AppConfig::from_env().expect("Failed to load config");
 
-    // Configure logging
+    // Configure logging - ensure visibility
+    // tracing_subscriber::fmt()
+        // .with_max_level(tracing::Level::DEBUG)
+        // .with_target(true)
+        // .with_thread_ids(true)
+        // .with_file(true)
+        // .with_line_number(true)
+        // .with_env_filter(
+        //      tracing_subscriber::EnvFilter::from_default_env()
+        //          .add_directive("template_project=debug".parse().unwrap()),
+        //  )
+        // .pretty()
+        // .init();
+
+    // tracing_subscriber::fmt()
+    //     .with_env_filter(
+    //         tracing_subscriber::EnvFilter::from_default_env()
+    //             .add_directive("template_project=debug".parse().unwrap()),
+    //     )
+    //     .init();
+
+    // Configure logging - Clean, minimal output with bulletproof visibility
     tracing_subscriber::fmt()
+        .without_time()
+        .with_target(false)
+        .with_thread_ids(false)
+        .with_thread_names(false)
+        .with_file(false)
+        .with_line_number(false)
         .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("template_project=debug".parse().unwrap()),
+            // SOLUTION: "info" as the global baseline, "warn" to silence Actix startup noise,
+            // and "debug" exclusively for your project's submodules.
+            tracing_subscriber::EnvFilter::new("info,actix_server=warn,template_project=debug")
         )
         .init();
 
@@ -133,6 +166,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(auth_service_data.clone())
             .app_data(user_service_data.clone())
             .app_data(test_item_service_data.clone())
+            .wrap(MaintenanceMode)
             .wrap(
                 Cors::default()
                     .allow_any_origin()
@@ -140,7 +174,7 @@ async fn main() -> std::io::Result<()> {
                     .allow_any_header()
                     .max_age(3600),
             )
-            .wrap(Logger::default())
+            .wrap(TracingLogger::default())
             .configure(routes::configure)
             .default_service(web::route().to(handle_not_found))
     })

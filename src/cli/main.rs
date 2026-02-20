@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 use sqlx::PgPool;
+use std::fs;
+use std::path::Path;
 use std::process;
 
 #[derive(Parser)]
@@ -19,9 +21,25 @@ enum Commands {
     /// Check database connection
     DbCheck,
     
+    /// Put the application into maintenance mode
+    Down {
+        /// Optional maintenance message
+        #[arg(long)]
+        message: Option<String>,
+        
+        /// Retry-After header value in seconds
+        #[arg(long, default_value = "60")]
+        retry: u32,
+    },
+    
+    /// Bring the application out of maintenance mode
+    Up,
+    
     /// Check CLI setup
     Test,
 }
+
+const MAINTENANCE_FILE: &str = "storage/framework/maintenance.json";
 
 #[tokio::main]
 async fn main() {
@@ -42,6 +60,14 @@ async fn main() {
             check_database().await;
         }
         
+        Some(Commands::Down { message, retry }) => {
+            maintenance_down(message, retry);
+        }
+        
+        Some(Commands::Up) => {
+            maintenance_up();
+        }
+        
         Some(Commands::Test) => {
             println!("🔍 Running CLI diagnostics...");
             println!();
@@ -54,6 +80,62 @@ async fn main() {
         
         None => {
             println!("Run 'ironclad --help' to see available commands");
+        }
+    }
+}
+
+fn maintenance_down(message: Option<String>, retry: u32) {
+    println!("🔧 Putting application into maintenance mode...");
+    println!();
+
+    // Create storage directory if it doesn't exist
+    if let Err(e) = fs::create_dir_all("storage/framework") {
+        eprintln!("❌ Failed to create storage directory: {}", e);
+        process::exit(1);
+    }
+
+    // Create maintenance payload
+    let maintenance_data = serde_json::json!({
+        "time": chrono::Utc::now().timestamp(),
+        "message": message.unwrap_or_else(|| "Application is down for maintenance".to_string()),
+        "retry": retry,
+        "created_at": chrono::Utc::now().to_rfc3339(),
+    });
+
+    // Write maintenance file
+    match fs::write(MAINTENANCE_FILE, maintenance_data.to_string()) {
+        Ok(_) => {
+            println!("✅ Application is now in maintenance mode");
+            println!();
+            println!("   All requests will receive a 503 response");
+            println!("   To bring the application back up, run:");
+            println!("   cargo run --bin ironclad -- up");
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to create maintenance file: {}", e);
+            process::exit(1);
+        }
+    }
+}
+
+fn maintenance_up() {
+    println!("🚀 Bringing application out of maintenance mode...");
+    println!();
+
+    if !Path::new(MAINTENANCE_FILE).exists() {
+        println!("ℹ️  Application is not in maintenance mode");
+        return;
+    }
+
+    match fs::remove_file(MAINTENANCE_FILE) {
+        Ok(_) => {
+            println!("✅ Application is now live");
+            println!();
+            println!("   All requests will be processed normally");
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to remove maintenance file: {}", e);
+            process::exit(1);
         }
     }
 }

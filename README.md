@@ -435,12 +435,20 @@ src/
 ---
 
 +++
+To run the server you must use cargo run --bin main
+can change this on Cargo.toml file
+
 To use CLI commands:
 
 cargo run --bin ironclad -- $arg
 
 Example:
 cargo run --bin ironclad -- test
+
+Server up & down with:
+
+cargo run --bin ironclad -- up
+cargo run --bin ironclad -- down --message "Your message"
 +++
 
 <div align="center">
