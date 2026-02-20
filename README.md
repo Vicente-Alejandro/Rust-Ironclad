@@ -19,9 +19,7 @@
 - [📦 Project Structure](#-project-structure)
 - [🚀 Quick Start](#-quick-start)
 - [📚 API Endpoints](#-api-endpoints)
-- [🔐 Security](#-security)
 - [📋 Dependencies](#-dependencies)
-- [🛣️ Roadmap](#-roadmap)
 
 ---
 
@@ -101,47 +99,92 @@ This framework follows **Domain-Driven Design (DDD)** with a clean 5-layer archi
 ## 📦 Project Structure
 
 ```
-src/
-├─ domain/                          # Pure Business Logic (DDD Core)
-│  ├─ entities/
-│  │  └─ user.rs                   # User entity with business rules
-│  └─ value_objects/
-│     └─ role.rs                   # Role enum with validation
-│
-├─ application/                     # Use Cases & Services
-│  ├─ dtos/                        # Data Transfer Objects
-│  │  └─ auth_dto.rs
-│  └─ services/
-│     ├─ auth_service.rs          # Authentication logic
-│     └─ user_service.rs          # User management logic
-│
-├─ infrastructure/                 # Technical Implementation
-│  ├─ http/
-│  │  ├─ authentication.rs        # JWT extractors & role guards
-│  │  ├─ controllers/              # HTTP handlers
-│  │  │  ├─ auth_controller.rs
-│  │  │  └─ user_controller.rs
+├─ Cargo.lock
+├─ Cargo.toml
+├─ LICENSE
+├─ migrations
+│  ├─ 001_create_users_table.sql
+│  ├─ 002_add_role_to_users.sql
+│  └─ 003_create_test_table.sql
+├─ README.md
+├─ src
+│  ├─ application
+│  │  ├─ dtos
+│  │  │  ├─ auth_dto.rs
+│  │  │  ├─ mod.rs
+│  │  │  └─ test_item_dto.rs
+│  │  ├─ mod.rs
+│  │  └─ services
+│  │     ├─ auth_service.rs
+│  │     ├─ mod.rs
+│  │     ├─ test_item_service.rs
+│  │     └─ user_service.rs
+│  ├─ cli
+│  │  ├─ main.rs
 │  │  └─ mod.rs
-│  └─ persistence/
-│     └─ postgres/
-│        └─ user_repository.rs    # SQL queries & repository impl
-│
-├─ interfaces/                     # Trait Contracts
-│  └─ repositories/
-│     └─ user_repository.rs       # Repository interface
-│
-├─ shared/                         # Cross-cutting Utilities
-│  ├─ extractors/                # Custom Actix extractors
-│  └─ validator/                 # Input validation
-│
-├─ routes/                        # Route Configuration
-│  └─ api.rs                     # Endpoint definitions
-│
-├─ config/                        # Configuration Management
-├─ errors/                        # Error Handling
-├─ db/                           # Database Initialization
-├─ utils/                        # JWT, Auth Utilities
-└─ main.rs                       # Server Entry Point
+│  ├─ config
+│  │  └─ mod.rs
+│  ├─ db
+│  │  ├─ mod.rs
+│  │  ├─ mongo.rs
+│  │  └─ postgres.rs
+│  ├─ domain
+│  │  ├─ entities
+│  │  │  ├─ mod.rs
+│  │  │  ├─ test_item.rs
+│  │  │  └─ user.rs
+│  │  ├─ mod.rs
+│  │  └─ value_objects
+│  │     ├─ mod.rs
+│  │     └─ role.rs
+│  ├─ errors
+│  │  └─ mod.rs
+│  ├─ infrastructure
+│  │  ├─ http
+│  │  │  ├─ authentication.rs
+│  │  │  ├─ controllers
+│  │  │  │  ├─ auth_controller.rs
+│  │  │  │  ├─ health_controller.rs
+│  │  │  │  ├─ mod.rs
+│  │  │  │  ├─ test_item_controller.rs
+│  │  │  │  └─ user_controller.rs
+│  │  │  └─ mod.rs
+│  │  ├─ mod.rs
+│  │  └─ persistence
+│  │     ├─ mod.rs
+│  │     └─ postgres
+│  │        ├─ mod.rs
+│  │        ├─ test_item_repository.rs
+│  │        └─ user_repository.rs
+│  ├─ interfaces
+│  │  ├─ mod.rs
+│  │  └─ repositories
+│  │     ├─ mod.rs
+│  │     ├─ test_item_repository.rs
+│  │     └─ user_repository.rs
+│  ├─ main.rs
+│  ├─ middleware
+│  │  ├─ maintenance.rs
+│  │  └─ mod.rs
+│  ├─ routes
+│  │  ├─ api.rs
+│  │  └─ mod.rs
+│  ├─ shared
+│  │  ├─ extractors
+│  │  │  ├─ mod.rs
+│  │  │  └─ validated_json.rs
+│  │  ├─ mod.rs
+│  │  └─ validator
+│  │     └─ mod.rs
+│  ├─ storage
+│  │  ├─ app
+│  │  └─ framework
+│  └─ utils
+│     ├─ auth.rs
+│     ├─ jwt.rs
+│     └─ mod.rs
+└─ storage
+   └─ framework
 ```
 
 ---
@@ -249,19 +292,6 @@ GET /api/user/{id}
 
 ---
 
-## 🔐 Security
-
-## 🔐 Security
-
-### ✅ Implemented
-| Feature | Details |
-|---------|---------|
-| **Password Hashing** | Bcrypt with cost factor 12 |
-| **JWT Authentication** | Configurable expiration (default 24h) |
-| **Input Validation** | Automatic validation on all endpoints |
-| **Type Safety** | Compile-time query validation with SQLx |
-| **Role-Based Access** | Extractors for Admin, Moderator, Premium roles |
-
 ### 🔧 Production Checklist
 - [ ] Change `JWT_SECRET` in `.env`
 - [ ] Enable HTTPS/TLS
@@ -333,44 +363,6 @@ MONGODB_NAME=template_db
 JWT_SECRET=your_secret_key_here
 JWT_EXPIRATION=86400
 ```
-
----
-
-## 🛣️ Roadmap
-
-| Phase | Features | Status |
-|-------|----------|--------|
-| **v0.1** | Core DDD architecture, JWT auth, CRUD users | ✅ Done |
-| **v0.2** | Role-based access control, pagination, validation | ✅ Done |
-| **v0.3** | Routes module, controllers separation | ✅ Done |
-| **v0.4** | Integration tests, API docs (OpenAPI) | 🔄 In Progress |
-| **v0.5** | Rate limiting, caching (Redis), audit logging | 📋 Planned |
-| **v1.0** | Production-ready, monitoring, CI/CD | 📋 Planned |
-
----
-
-## 📂 Project Config
-
-### .env.example
-```env
-# Server Configuration
-SERVER_HOST=127.0.0.1
-SERVER_PORT=8080
-ENVIRONMENT=development
-
-# PostgreSQL
-DATABASE_URL=postgresql://postgres:password@localhost/template_db
-DB_MAX_CONNECTIONS=10
-
-# JWT
-JWT_SECRET=your_super_secret_key_change_this_in_production
-JWT_EXPIRATION=86400
-
-# MongoDB (optional, leave empty to skip)
-MONGODB_URL=
-MONGODB_NAME=template_db
-```
-
 ---
 
 ## 🤝 Best Practices
@@ -397,44 +389,8 @@ If this framework helps you, consider giving it a star! ⭐
 
 ---
 
-## 📄 License
-
-MIT License - Feel free to use in your projects
-
-```
-Copyright (c) 2026 Rust Ironclad Framework
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-...
-```
-
 ---
-To create new object
-src/
-├─ domain/entities/
-│  └─ test_item.rs          # 🆕 Entidad
-├─ application/
-│  ├─ dtos/
-│  │  └─ test_item_dto.rs   # 🆕 DTOs
-│  └─ services/
-│     └─ test_item_service.rs # 🆕 Lógica de negocio
-├─ infrastructure/
-│  ├─ http/controllers/
-│  │  └─ test_item_controller.rs # 🆕 HTTP handlers
-│  └─ persistence/postgres/
-│     └─ test_item_repository.rs # 🆕 Queries SQL
-├─ interfaces/repositories/
-│  └─ test_item_repository.rs # 🆕 Trait
-└─ migrations/
-   └─ 00X_create_test_items_table.sql # 🆕 Schema
----
-
-+++
+<div align="center">
 To run the server you must use cargo run --bin main
 can change this on Cargo.toml file
 
@@ -449,13 +405,18 @@ Server up & down with:
 
 cargo run --bin ironclad -- up
 cargo run --bin ironclad -- down --message "Your message"
-+++
+</div>
+---
 
 <div align="center">
-
-### Made with ❤️ in Rust
 
 Questions? Create an [issue](https://github.com/Vicente-Alejandro/Rust-Ironclad/issues) or [PR](https://github.com/Vicente-Alejandro/Rust-Ironclad/pulls)
 
 </div>
 
+
+```
+template_project
+
+
+```
