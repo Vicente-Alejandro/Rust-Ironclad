@@ -387,6 +387,8 @@ JWT_EXPIRATION=86400
 
 If this framework helps you, consider giving it a star! ⭐
 
+---
+
 <div align="center">
 To run the server you must use cargo run --bin main
 can change this on Cargo.toml file
