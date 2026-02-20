@@ -77,18 +77,6 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to initialize PostgreSQL pool");
     tracing::info!("✅ PostgreSQL connected");
 
-    tracing::info!("🔥 Warming up connection pool...");
-    let warmup_start = std::time::Instant::now();
-
-    for i in 0..app_config.database.max_connections {
-        match sqlx::query("SELECT 1").fetch_one(&pg_pool).await {
-            Ok(_) => tracing::debug!("  ✓ Connection {} ready", i + 1),
-            Err(e) => tracing::warn!("  ✗ Connection {} failed: {}", i + 1, e),
-        }
-    }
-
-    tracing::info!("✅ Pool warmed up in {:?}", warmup_start.elapsed());
-
     // MongoDB (optional)
     if let Some(mongo_config) = &app_config.mongodb {
         match db::mongo::init_mongodb(mongo_config).await {

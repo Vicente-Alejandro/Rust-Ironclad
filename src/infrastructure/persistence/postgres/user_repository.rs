@@ -3,7 +3,6 @@ use async_trait::async_trait;
 use chrono::Utc;
 
 use crate::domain::entities::User;
-use crate::domain::value_objects::Role;
 use crate::errors::ApiError;
 use crate::interfaces::repositories::UserRepository;
 
