@@ -201,7 +201,7 @@ fn render_json_response(data: &serde_json::Value) -> HttpResponse {
 
 // Helper: Render default HTML template
 fn render_default_html(data: &serde_json::Value) -> HttpResponse {
-    let template = include_str!("../templates/render/down/default.html");
+    let template = include_str!("../../templates/render/down/default.html");
     
     let message = data["message"].as_str().unwrap_or("Application is down for maintenance");
     let retry = data["retry"].as_u64().unwrap_or(60);
@@ -240,7 +240,7 @@ fn render_custom_html(data: &serde_json::Value) -> HttpResponse {
     } else {
         // Fallback to default if template not found
         tracing::warn!("Template not found: {}, using default", template_path);
-        include_str!("../templates/render/down/default.html").to_string()
+        include_str!("../../templates/render/down/default.html").to_string()
     };
     
     let message = data["message"].as_str().unwrap_or("Application is down for maintenance");

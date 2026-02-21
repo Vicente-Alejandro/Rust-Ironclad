@@ -2,3 +2,5 @@
 **/*.rs.bk
 .env
 storage/framework/maintenance.json
+templates/render/down/*
+!templates/render/down/default.html
