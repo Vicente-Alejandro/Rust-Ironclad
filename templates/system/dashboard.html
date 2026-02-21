@@ -347,10 +347,6 @@
                     <span class="metric-label">CPU Usage</span>
                     <span class="metric-value" id="app-cpu">-</span>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Runtime</span>
-                    <span class="metric-value" id="app-runtime">-</span>
-                </div>
             </div>
 
             <div class="card">
@@ -442,8 +438,9 @@
     </div>
 
     <script>
-        let countdownTimer = 3;
+        let countdownTimer = 0.25;
         let countdownInterval;
+        let isFirstLoad = true; 
 
         async function fetchSystemInfo() {
             try {
@@ -463,16 +460,13 @@
         }
 
         function updateDashboard(data) {
-            // Health Status
-            document.getElementById('version').textContent = '0.0.3';
+            // --- DATOS DINÁMICOS (Se actualizan en cada ciclo) ---
             document.getElementById('uptime').textContent = formatUptime(data.application.app_uptime_seconds);
             document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
 
-            // CPU
+            // CPU Dinámico
             const cpuUsage = data.cpu_info.global_usage_percent.toFixed(1);
             document.getElementById('cpu-usage').textContent = `${cpuUsage}%`;
-            document.getElementById('cpu-brand').textContent = data.cpu_info.brand;
-            document.getElementById('cpu-cores').textContent = data.os_info.num_cpus;
             document.getElementById('cpu-frequency').textContent = `${data.cpu_info.frequency_mhz} MHz`;
             document.getElementById('cpu-temp').textContent = 
                 data.cpu_info.temperature_celsius ? `${data.cpu_info.temperature_celsius.toFixed(1)}°C` : 'N/A';
@@ -481,10 +475,9 @@
             cpuProgress.style.width = `${cpuUsage}%`;
             cpuProgress.className = cpuUsage > 80 ? 'progress-fill danger' : cpuUsage > 60 ? 'progress-fill warning' : 'progress-fill';
 
-            // Memory
+            // Memoria Dinámica
             const memPercent = data.memory_info.used_percentage.toFixed(1);
             document.getElementById('memory-percent').textContent = `${memPercent}%`;
-            document.getElementById('memory-total').textContent = data.memory_info.total_human;
             document.getElementById('memory-used').textContent = data.memory_info.used_human;
             document.getElementById('memory-free').textContent = data.memory_info.free_human;
             
@@ -492,17 +485,11 @@
             memProgress.style.width = `${memPercent}%`;
             memProgress.className = memPercent > 80 ? 'progress-fill danger' : memPercent > 60 ? 'progress-fill warning' : 'progress-fill';
 
-            // Application
+            // Aplicación Dinámica
             document.getElementById('app-memory').textContent = data.application.app_memory_human;
             document.getElementById('app-cpu').textContent = `${data.application.app_cpu_usage_percent.toFixed(1)}%`;
-            document.getElementById('app-runtime').textContent = formatUptime(data.application.app_uptime_seconds);
 
-            // Database
-            document.getElementById('db-name').textContent = data.database.database_name;
-            document.getElementById('db-size').textContent = data.database.size_human;
-            document.getElementById('db-version').textContent = data.database.engine_version.split(' ').slice(0, 2).join(' ');
-            document.getElementById('db-directory').textContent = data.database.data_directory || 'N/A';
-            
+            // Base de Datos (Estado)
             const dbStatus = document.getElementById('db-status');
             if (data.database.status === 'Connected') {
                 dbStatus.className = 'status-badge status-up';
@@ -512,17 +499,11 @@
                 dbStatus.textContent = 'DOWN';
             }
 
-            // OS
-            document.getElementById('os-platform').textContent = data.os_info.platform;
-            document.getElementById('os-distro').textContent = data.os_info.distro;
-            document.getElementById('os-hostname').textContent = data.os_info.hostname;
-            document.getElementById('os-kernel').textContent = data.os_info.kernel_version;
-
-            // Network
+            // Red Dinámica
             document.getElementById('net-rx').textContent = data.network_info.total_rx_human;
             document.getElementById('net-tx').textContent = data.network_info.total_tx_human;
 
-            // Disks
+            // Discos Dinámicos
             const diskList = document.getElementById('disk-list');
             diskList.innerHTML = data.disks_info.map(disk => `
                 <div class="disk-item">
@@ -542,6 +523,27 @@
                     </div>
                 </div>
             `).join('');
+
+            // --- DATOS ESTÁTICOS (Se actualizan SOLO la primera vez) ---
+            if (isFirstLoad) {
+                document.getElementById('version').textContent = '0.0.3'; // O envíalo desde el backend
+                document.getElementById('cpu-brand').textContent = data.cpu_info.brand;
+                document.getElementById('cpu-cores').textContent = data.os_info.num_cpus;
+                
+                document.getElementById('memory-total').textContent = data.memory_info.total_human;
+                
+                document.getElementById('db-name').textContent = data.database.database_name;
+                document.getElementById('db-size').textContent = data.database.size_human;
+                document.getElementById('db-version').textContent = data.database.engine_version.split(' ').slice(0, 2).join(' ');
+                document.getElementById('db-directory').textContent = data.database.data_directory || 'N/A';
+                
+                document.getElementById('os-platform').textContent = data.os_info.platform;
+                document.getElementById('os-distro').textContent = data.os_info.distro;
+                document.getElementById('os-hostname').textContent = data.os_info.hostname;
+                document.getElementById('os-kernel').textContent = data.os_info.kernel_version;
+                
+                isFirstLoad = false; // 2. Desactivar la bandera después de renderizar
+            }
         }
 
         function formatUptime(seconds) {

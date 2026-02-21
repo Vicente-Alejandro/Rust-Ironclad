@@ -186,14 +186,14 @@ impl HealthController {
         // 2. Initialize or Get System Monitor
         let mutex = SYSTEM_MONITOR.get_or_init(|| {
             // Note: In sysinfo 0.30+, specific components are decoupled.
-            // System only manages CPU, Memory and Processes here.
+            // System only manages CPU, Memory, and Processes here.
             let mut sys = System::new_with_specifics(
                 RefreshKind::new()
                     .with_cpu(CpuRefreshKind::everything())
                     .with_memory(MemoryRefreshKind::everything())
                     .with_processes(ProcessRefreshKind::everything())
             );
-            // Wait for CPU baseline
+            // Wait for CPU baseline to ensure accurate usage metrics
             std::thread::sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL);
             sys.refresh_all(); 
             Mutex::new(sys)
@@ -218,16 +218,33 @@ impl HealthController {
         // A. CPU (Stats + Temp)
         let global_cpu = sys.global_cpu_info();
         
-        // Instantiate Components to find temperature sensors
+        // Extract physical details from the first core to get valid brand and frequency
+        let first_core = sys.cpus().first();
+        let cpu_brand = first_core
+            .map(|c| c.brand().to_string())
+            .unwrap_or_else(|| "Unknown".to_string());
+        
+        let cpu_freq = first_core
+            .map(|c| c.frequency())
+            .unwrap_or(0);
+
+        // Broaden the search spectrum for temperature sensors (Intel/AMD/Generic)
         let components = Components::new_with_refreshed_list();
         let cpu_temp = components.iter()
-            .find(|c| c.label().to_lowercase().contains("cpu") || c.label().to_lowercase().contains("core"))
+            .find(|c| {
+                let label = c.label().to_lowercase();
+                label.contains("cpu") 
+                    || label.contains("core") 
+                    || label.contains("tctl")    // Common in AMD
+                    || label.contains("tdie")    // Common in AMD
+                    || label.contains("package") // Common in Intel
+            })
             .map(|c| c.temperature());
 
         let cpu_info = CpuInfo {
             global_usage_percent: global_cpu.cpu_usage(),
-            brand: global_cpu.brand().to_string(),
-            frequency_mhz: global_cpu.frequency(),
+            brand: cpu_brand,
+            frequency_mhz: cpu_freq,
             temperature_celsius: cpu_temp,
         };
 
