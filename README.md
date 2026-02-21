@@ -624,6 +624,367 @@ cargo run --bin ironclad -- up
 
 ---
 
+## 🔧 Maintenance Mode (Laravel-style)
+
+Put your application into maintenance mode to safely perform updates, migrations, or deployments.
+
+### What is Maintenance Mode?
+
+When you activate maintenance mode:
+- ✅ Your server keeps running
+- ⛔ All requests receive a **503 Service Unavailable** response
+- 🎨 Users see a custom page (HTML) or JSON message
+- 🔑 You can create a secret bypass (you and your team can keep working)
+
+---
+
+### Basic Commands
+
+#### **Activate Maintenance Mode**
+```bash
+# Basic (default message)
+cargo run --bin ironclad -- down
+
+# With custom message
+cargo run --bin ironclad -- down --message "Updating database..."
+
+# With custom retry time (in seconds)
+cargo run --bin ironclad -- down --message "Scheduled maintenance" --retry 300
+```
+
+#### **Deactivate Maintenance Mode**
+```bash
+cargo run --bin ironclad -- up
+```
+
+---
+
+### 🔑 Secret Bypass (Team Access)
+
+Allows your team to keep accessing the application while it's in maintenance.
+```bash
+# Activate with secret
+cargo run --bin ironclad -- down --secret "myteam2024"
+```
+
+**How it works:**
+
+1. A regular user tries to access:
+```
+   http://localhost:8080/api/users
+   → 503 Maintenance (blocked ❌)
+```
+
+2. Your team accesses with the secret:
+```
+   http://localhost:8080/api/users/myteam2024
+   → Redirects to /api/users
+   → Bypass cookie is saved
+   → 200 OK (full access ✅)
+```
+
+3. After the first access, the secret is no longer needed (cookie saved):
+```
+   http://localhost:8080/api/users
+   → 200 OK (active cookie ✅)
+```
+
+---
+
+### 🎨 Custom HTML Templates
+
+Display maintenance pages with custom design when users access from a browser.
+
+#### **Template Structure**
+```
+src/
+storage/
+templates/
+└── render/
+    └── down/
+        ├── default.html              # Default template
+        ├── emergency/
+        │   ├── default.html          # --render "emergency"
+        │   └── low.html              # --render "emergency::low"
+        └── maintenance/
+            └── database.html         # --render "maintenance::database"
+```
+
+#### **Using Templates**
+```bash
+# Without specifying (uses default.html)
+cargo run --bin ironclad -- down
+
+# Use specific folder (loads its default.html)
+cargo run --bin ironclad -- down --render "emergency"
+# → Loads: templates/render/down/emergency/default.html
+
+# Use specific file
+cargo run --bin ironclad -- down --render "emergency::low"
+# → Loads: templates/render/down/emergency/low.html
+
+# Database template
+cargo run --bin ironclad -- down --render "maintenance::database" --message "Migrating to PostgreSQL 16"
+# → Loads: templates/render/down/maintenance/database.html
+```
+
+#### **Create Your Own Template**
+
+1. **Create folder and file:**
+```bash
+   mkdir templates\render\down\myfolder
+   # Create file: templates\render\down\myfolder\default.html
+```
+
+2. **HTML content:**
+```html
+   <!DOCTYPE html>
+   <html>
+   <head>
+       <title>Maintenance</title>
+       <style>
+           body { 
+               background: #2c3e50; 
+               color: white; 
+               text-align: center; 
+               padding-top: 100px;
+           }
+       </style>
+   </head>
+   <body>
+       <h1>🚧 Under Maintenance</h1>
+       <p>{{MESSAGE}}</p>
+       <p>Come back in {{RETRY}} seconds</p>
+   </body>
+   </html>
+```
+
+3. **Use your template:**
+```bash
+   cargo run --bin ironclad -- down --render "myfolder"
+```
+
+**Available variables:**
+- `{{MESSAGE}}` - Your custom message
+- `{{RETRY}}` - Retry time in seconds
+- `{{TIMESTAMP}}` - Activation date/time
+
+---
+
+### 📋 JSON Mode (no HTML)
+
+Forces JSON responses even for browsers (useful for pure APIs).
+```bash
+cargo run --bin ironclad -- down --norender
+```
+
+**Response:**
+```json
+{
+  "error": "Service Unavailable",
+  "message": "Application is down for maintenance",
+  "status": 503,
+  "retry_after": 60
+}
+```
+
+---
+
+### ↪️ Redirect
+
+Redirects all requests to a specific URL (useful for an external status page).
+```bash
+# Redirect to internal route
+cargo run --bin ironclad -- down --redirect "/status"
+
+# Redirect to external site
+cargo run --bin ironclad -- down --redirect "https://status.myapp.com"
+```
+
+---
+
+### 📊 Full Examples
+
+#### **Case 1: Scheduled Maintenance**
+```bash
+# Activate
+cargo run --bin ironclad -- down \
+  --message "Scheduled maintenance: security update" \
+  --retry 1800 \
+  --secret "admin2024"
+
+# While you work, access with:
+# http://localhost:8080/api/any-route/admin2024
+
+# When done
+cargo run --bin ironclad -- up
+```
+
+#### **Case 2: Emergency (Team Only)**
+```bash
+cargo run --bin ironclad -- down \
+  --render "emergency" \
+  --message "Security incident detected. Resolving..." \
+  --secret "emergency-access" \
+  --norender  # Forces JSON for APIs
+```
+
+#### **Case 3: Database Migration**
+```bash
+# Step 1: Activate maintenance
+cargo run --bin ironclad -- down \
+  --render "maintenance::database" \
+  --message "Migrating database from MySQL to PostgreSQL" \
+  --retry 600 \
+  --secret "dbteam"
+
+# Step 2: Your team accesses with /dbteam at the end of any URL
+# http://localhost:8080/api/users/dbteam
+
+# Step 3: Run migration
+sqlx migrate run
+
+# Step 4: Deactivate
+cargo run --bin ironclad -- up
+```
+
+#### **Case 4: Deployment with External Status Page**
+```bash
+cargo run --bin ironclad -- down \
+  --redirect "https://status.myapp.com/deploy-in-progress" \
+  --secret "deploy2024"
+```
+
+---
+
+### 🔍 Check Status
+```bash
+# Check if maintenance file exists
+dir storage\framework\maintenance.json
+
+# View contents
+Get-Content storage\framework\maintenance.json | ConvertFrom-Json
+
+# Example output:
+# time          : 1708550400
+# message       : Updating database...
+# retry         : 60
+# created_at    : 2026-02-21T20:00:00Z
+# secret        : myteam2024
+# render        : emergency::low
+```
+
+---
+
+### 🎯 Comparison with Laravel
+
+| Laravel | Rust Ironclad | Description |
+|---------|---------------|-------------|
+| `php artisan down` | `cargo run --bin ironclad -- down` | Activate maintenance |
+| `php artisan up` | `cargo run --bin ironclad -- up` | Deactivate maintenance |
+| `--secret="token"` | `--secret "token"` | Bypass access |
+| `--render="view"` | `--render "template"` | Custom view |
+| `--redirect="/url"` | `--redirect "/url"` | Redirect |
+| `--retry=600` | `--retry 600` | Retry time |
+
+---
+
+### 💡 Tips and Best Practices
+
+1. **Store the secret securely:** Don't share it in public repositories
+```bash
+   # Good: Environment variable
+   $SECRET = $env:MAINTENANCE_SECRET
+   cargo run --bin ironclad -- down --secret $SECRET
+```
+
+2. **Use descriptive templates:** Create specific templates for each type of maintenance
+```
+   templates/render/down/
+   ├── scheduled/     # Scheduled maintenance
+   ├── emergency/     # Emergencies
+   ├── deploy/        # Deployments
+   └── database/      # DB Migrations
+```
+
+3. **Combine options as needed:**
+```bash
+   # API + Web with secret
+   cargo run --bin ironclad -- down \
+     --render "deploy" \
+     --message "Deploying v2.0" \
+     --secret "team" \
+     --retry 300
+```
+
+4. **Automate with scripts:**
+```bash
+   # deploy.sh
+   cargo run --bin ironclad -- down --secret "deploy-$(date +%s)"
+   # ... deploy commands ...
+   cargo run --bin ironclad -- up
+```
+
+---
+
+### ⚠️ Important
+
+- ❌ **DO NOT use `--render` and `--redirect` together** (conflict)
+- ❌ **DO NOT use `--norender` and `--render` together** (conflict)
+- ✅ **Always run from the project root** (where `Cargo.toml` is)
+- ✅ **Templates must be in `templates/`, NOT in `src/templates/`**
+
+---
+
+### 🐛 Troubleshooting
+
+**Problem:** "Template not found"
+```bash
+# Solution: Verify location
+tree /F templates
+# Templates must be in templates/, not in src/templates/
+```
+
+**Problem:** "Application is not in maintenance mode" when running `up`
+```bash
+# Solution: Check file
+dir storage\framework\maintenance.json
+# If it doesn't exist, the app is not in maintenance mode
+```
+
+**Problem:** The server keeps responding normally
+```bash
+# Solution 1: Restart the server
+# Ctrl+C and run again: cargo run
+
+# Solution 2: Verify the file was created
+Get-Content storage\framework\maintenance.json
+```
+
+**Problem:** Secret is not working
+```bash
+# Solution: Clear browser cookies
+# Or use incognito mode to test
+```
+
+---
+
+### 📁 Related Files
+```
+project/
+├── storage/
+│   └── framework/
+│       └── maintenance.json      # Maintenance state (auto-generated)
+├── templates/
+│   └── render/
+│       └── down/                 # HTML Templates
+└── src/
+    ├── cli/main.rs               # down/up commands
+    └── middleware/maintenance.rs # Maintenance logic
+```
+
+---
+
 Questions? Create an [issue](https://github.com/Vicente-Alejandro/Rust-Ironclad/issues) or [PR](https://github.com/Vicente-Alejandro/Rust-Ironclad/pulls)
 
 </div>
