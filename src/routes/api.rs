@@ -33,10 +33,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             //         .route("", web::get().to(crate::infrastructure::http::DocsController::serve_docs))
             // )
             .service(
-                web::scope("/administration")
+        web::scope("/administration")
                     .route("/health", web::get().to(crate::infrastructure::http::HealthController::health_check))
                     .route("/uptime", web::get().to(crate::infrastructure::http::HealthController::uptime))
-                    .route("/", web::get().to(crate::infrastructure::http::HealthController::system_info))
+                    .route("/system", web::get().to(crate::infrastructure::http::HealthController::system_dashboard)) 
+                    .route("/system-json", web::get().to(crate::infrastructure::http::HealthController::system_info_json))  
             )
     );
 }

@@ -349,6 +349,20 @@ impl HealthController {
         }
     }
 
+    /// Endpoint 4: Dashboard HTML
+    pub async fn system_dashboard() -> ApiResult<HttpResponse> {
+        let html = include_str!("../../../../templates/system/dashboard.html");
+        Ok(HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html))
+    }
+
+    /// Endpoint 5: System Info JSON (Same as system_info but only JSON, no HTML)
+    pub async fn system_info_json(pool: web::Data<PgPool>) -> ApiResult<HttpResponse> {
+        // Reutilizar la lógica de system_info pero solo devolver JSON
+        Self::system_info(pool).await
+    }
+
     // --- PRIVATE HELPERS ---
 
     fn format_duration(duration: chrono::Duration) -> String {

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Dashboard - Ironclad Framework</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .auto-refresh {
+            float: right;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-up {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-down {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-degraded {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            border: 1px solid #334155;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #94a3b8;
+            font-size: 0.875rem;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #f59e0b, #ef4444);
+        }
+
+        .progress-fill.danger {
+            background: #ef4444;
+        }
+
+        .disk-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .disk-item {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .disk-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .disk-name {
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        .update-indicator {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: #1e293b;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+        }
+
+        .timestamp {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .auto-refresh {
+                float: none;
+                display: block;
+                margin-top: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="update-indicator">
+        <div class="pulse"></div>
+        <span>Auto-refresh: <span id="countdown">3</span>s</span>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🦀 System Dashboard</h1>
+            <p class="subtitle">Rust Ironclad Framework - Real-time Monitoring</p>
+        </header>
+
+        <!-- Status Overview -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">❤️</span>
+                        Health Status
+                    </div>
+                    <span id="health-status" class="status-badge status-up">UP</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Version</span>
+                    <span class="metric-value" id="version">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Uptime</span>
+                    <span class="metric-value" id="uptime">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Last Check</span>
+                    <span class="metric-value" id="last-check">-</span>
+                </div>
+            </div>
+
+            <!-- CPU Info -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">⚡</span>
+                        CPU
+                    </div>
+                    <span class="metric-value" id="cpu-usage">0%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Brand</span>
+                    <span class="metric-value" id="cpu-brand">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Cores</span>
+                    <span class="metric-value" id="cpu-cores">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Frequency</span>
+                    <span class="metric-value" id="cpu-frequency">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Temperature</span>
+                    <span class="metric-value" id="cpu-temp">-</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cpu-progress" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Memory Info -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">💾</span>
+                        Memory
+                    </div>
+                    <span class="metric-value" id="memory-percent">0%</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total</span>
+                    <span class="metric-value" id="memory-total">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Used</span>
+                    <span class="metric-value" id="memory-used">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Free</span>
+                    <span class="metric-value" id="memory-free">-</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="memory-progress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Application & Database -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🚀</span>
+                        Application
+                    </div>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Memory Usage</span>
+                    <span class="metric-value" id="app-memory">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">CPU Usage</span>
+                    <span class="metric-value" id="app-cpu">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Runtime</span>
+                    <span class="metric-value" id="app-runtime">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🗄️</span>
+                        Database
+                    </div>
+                    <span id="db-status" class="status-badge status-up">UP</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Name</span>
+                    <span class="metric-value" id="db-name">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Size</span>
+                    <span class="metric-value" id="db-size">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Version</span>
+                    <span class="metric-value" id="db-version" style="font-size: 0.75rem;">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Data Directory</span>
+                    <span class="metric-value" id="db-directory" style="font-size: 0.75rem;">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- OS & Network -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">💻</span>
+                        Operating System
+                    </div>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Platform</span>
+                    <span class="metric-value" id="os-platform">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Distribution</span>
+                    <span class="metric-value" id="os-distro">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Hostname</span>
+                    <span class="metric-value" id="os-hostname">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Kernel</span>
+                    <span class="metric-value" id="os-kernel">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🌐</span>
+                        Network
+                    </div>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Received</span>
+                    <span class="metric-value" id="net-rx">-</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Transmitted</span>
+                    <span class="metric-value" id="net-tx">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disks -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-icon">💿</span>
+                    Disk Storage
+                </div>
+            </div>
+            <div class="disk-list" id="disk-list">
+                <!-- Disks will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <p class="timestamp" id="footer-timestamp">Last updated: Never</p>
+    </div>
+
+    <script>
+        let countdownTimer = 3;
+        let countdownInterval;
+
+        async function fetchSystemInfo() {
+            try {
+                const response = await fetch('/api/administration/system-json');
+                if (!response.ok) throw new Error('Failed to fetch');
+                
+                const data = await response.json();
+                updateDashboard(data);
+                
+                // Update timestamp
+                document.getElementById('footer-timestamp').textContent = 
+                    `Last updated: ${data.check_time_human}`;
+                
+            } catch (error) {
+                console.error('Error fetching system info:', error);
+            }
+        }
+
+        function updateDashboard(data) {
+            // Health Status
+            document.getElementById('version').textContent = '0.0.3';
+            document.getElementById('uptime').textContent = formatUptime(data.application.app_uptime_seconds);
+            document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
+
+            // CPU
+            const cpuUsage = data.cpu_info.global_usage_percent.toFixed(1);
+            document.getElementById('cpu-usage').textContent = `${cpuUsage}%`;
+            document.getElementById('cpu-brand').textContent = data.cpu_info.brand;
+            document.getElementById('cpu-cores').textContent = data.os_info.num_cpus;
+            document.getElementById('cpu-frequency').textContent = `${data.cpu_info.frequency_mhz} MHz`;
+            document.getElementById('cpu-temp').textContent = 
+                data.cpu_info.temperature_celsius ? `${data.cpu_info.temperature_celsius.toFixed(1)}°C` : 'N/A';
+            
+            const cpuProgress = document.getElementById('cpu-progress');
+            cpuProgress.style.width = `${cpuUsage}%`;
+            cpuProgress.className = cpuUsage > 80 ? 'progress-fill danger' : cpuUsage > 60 ? 'progress-fill warning' : 'progress-fill';
+
+            // Memory
+            const memPercent = data.memory_info.used_percentage.toFixed(1);
+            document.getElementById('memory-percent').textContent = `${memPercent}%`;
+            document.getElementById('memory-total').textContent = data.memory_info.total_human;
+            document.getElementById('memory-used').textContent = data.memory_info.used_human;
+            document.getElementById('memory-free').textContent = data.memory_info.free_human;
+            
+            const memProgress = document.getElementById('memory-progress');
+            memProgress.style.width = `${memPercent}%`;
+            memProgress.className = memPercent > 80 ? 'progress-fill danger' : memPercent > 60 ? 'progress-fill warning' : 'progress-fill';
+
+            // Application
+            document.getElementById('app-memory').textContent = data.application.app_memory_human;
+            document.getElementById('app-cpu').textContent = `${data.application.app_cpu_usage_percent.toFixed(1)}%`;
+            document.getElementById('app-runtime').textContent = formatUptime(data.application.app_uptime_seconds);
+
+            // Database
+            document.getElementById('db-name').textContent = data.database.database_name;
+            document.getElementById('db-size').textContent = data.database.size_human;
+            document.getElementById('db-version').textContent = data.database.engine_version.split(' ').slice(0, 2).join(' ');
+            document.getElementById('db-directory').textContent = data.database.data_directory || 'N/A';
+            
+            const dbStatus = document.getElementById('db-status');
+            if (data.database.status === 'Connected') {
+                dbStatus.className = 'status-badge status-up';
+                dbStatus.textContent = 'UP';
+            } else {
+                dbStatus.className = 'status-badge status-down';
+                dbStatus.textContent = 'DOWN';
+            }
+
+            // OS
+            document.getElementById('os-platform').textContent = data.os_info.platform;
+            document.getElementById('os-distro').textContent = data.os_info.distro;
+            document.getElementById('os-hostname').textContent = data.os_info.hostname;
+            document.getElementById('os-kernel').textContent = data.os_info.kernel_version;
+
+            // Network
+            document.getElementById('net-rx').textContent = data.network_info.total_rx_human;
+            document.getElementById('net-tx').textContent = data.network_info.total_tx_human;
+
+            // Disks
+            const diskList = document.getElementById('disk-list');
+            diskList.innerHTML = data.disks_info.map(disk => `
+                <div class="disk-item">
+                    <div class="disk-header">
+                        <span class="disk-name">${disk.name}</span>
+                        <span>${disk.used_percentage.toFixed(1)}% used</span>
+                    </div>
+                    <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.5rem;">
+                        ${disk.mount_point} (${disk.file_system})
+                    </div>
+                    <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+                        ${disk.available_space_human} free of ${disk.total_space_human}
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${disk.used_percentage > 80 ? 'danger' : disk.used_percentage > 60 ? 'warning' : ''}" 
+                             style="width: ${disk.used_percentage}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+
+            if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+            if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+            if (minutes > 0) return `${minutes}m ${secs}s`;
+            return `${secs}s`;
+        }
+
+        function startCountdown() {
+            countdownTimer = 0.25; // Inicial value
+            document.getElementById('countdown').textContent = countdownTimer;
+            
+            if (countdownInterval) clearInterval(countdownInterval);
+            
+            countdownInterval = setInterval(() => {
+                // Rest .25 in each cycle instead of 1 (--)
+                countdownTimer -= 0.25; 
+                document.getElementById('countdown').textContent = countdownTimer;
+                
+                if (countdownTimer <= 0) {
+                    fetchSystemInfo();
+                    startCountdown();
+                }
+            }, 250); 
+        }
+
+        // Initial load
+        fetchSystemInfo();
+        startCountdown();
+    </script>
+</body>
+</html>
