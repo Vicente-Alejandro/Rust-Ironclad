@@ -401,7 +401,7 @@ The project has two binaries configured:
 
 | Binary | Command | Purpose |
 |--------|---------|---------|
-| **`ironclad`** | `cargo run` | API Server (default) |
+| **`ironclad`** | `cargo run --bin main` | API Server (default) |
 | **`ironclad`** | `cargo run --bin ironclad` | CLI Tool |
 
 > **Note:** You can change the default binary in `Cargo.toml` under `[package]` → `default-run`
@@ -501,7 +501,7 @@ cargo run --bin ironclad -- test
 <td>Start API Server</td>
 <td>
 ```bash
-cargo run
+cargo run --bin main
 ```
 
 </td>
@@ -561,7 +561,7 @@ cargo run --bin ironclad -- version
 
 ---
 
-### 💡 Pro Tips
+### 💡Tips
 
 **Create an alias for faster development:**
 
@@ -602,7 +602,7 @@ ironclad down
 ### 🛠️ Development Workflow
 ```bash
 # 1. Start the server
-cargo run
+cargo run --bin main
 
 # 2. In another terminal, check database
 cargo run --bin ironclad -- db-check
