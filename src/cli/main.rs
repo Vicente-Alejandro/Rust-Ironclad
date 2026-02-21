@@ -30,6 +30,22 @@ enum Commands {
         /// Retry-After header value in seconds
         #[arg(long, default_value = "60")]
         retry: u32,
+        
+        /// Secret token to bypass maintenance mode
+        #[arg(long)]
+        secret: Option<String>,
+        
+        /// Template to render (e.g., "emergency" or "emergency::low")
+        #[arg(long)]
+        render: Option<String>,
+        
+        /// Force JSON response (no HTML rendering)
+        #[arg(long)]
+        norender: bool,
+        
+        /// Redirect all requests to this path
+        #[arg(long)]
+        redirect: Option<String>,
     },
     
     /// Bring the application out of maintenance mode
@@ -60,8 +76,8 @@ async fn main() {
             check_database().await;
         }
         
-        Some(Commands::Down { message, retry }) => {
-            maintenance_down(message, retry);
+        Some(Commands::Down { message, retry, secret, render, norender, redirect }) => {
+            maintenance_down(message, retry, secret, render, norender, redirect);
         }
         
         Some(Commands::Up) => {
@@ -84,7 +100,14 @@ async fn main() {
     }
 }
 
-fn maintenance_down(message: Option<String>, retry: u32) {
+fn maintenance_down(
+    message: Option<String>, 
+    retry: u32,
+    secret: Option<String>,
+    render: Option<String>,
+    norender: bool,
+    redirect: Option<String>,
+) {
     println!("🔧 Putting application into maintenance mode...");
     println!();
 
@@ -94,20 +117,63 @@ fn maintenance_down(message: Option<String>, retry: u32) {
         process::exit(1);
     }
 
+    // Validate conflicting options
+    if norender && render.is_some() {
+        eprintln!("❌ Cannot use both --norender and --render options");
+        process::exit(1);
+    }
+    
+    if render.is_some() && redirect.is_some() {
+        eprintln!("❌ Cannot use both --render and --redirect options");
+        process::exit(1);
+    }
+
     // Create maintenance payload
-    let maintenance_data = serde_json::json!({
+    let mut maintenance_data = serde_json::json!({
         "time": chrono::Utc::now().timestamp(),
         "message": message.unwrap_or_else(|| "Application is down for maintenance".to_string()),
         "retry": retry,
         "created_at": chrono::Utc::now().to_rfc3339(),
     });
 
+    // Add optional fields
+    if let Some(secret_value) = secret {
+        maintenance_data["secret"] = serde_json::json!(secret_value);
+        println!("🔑 Secret bypass enabled: /{}", secret_value);
+    }
+
+    if norender {
+        maintenance_data["norender"] = serde_json::json!(true);
+        println!("📋 JSON-only mode (no HTML rendering)");
+    }
+
+    if let Some(render_template) = render {
+        // Validate template path exists
+        let template_path = parse_template_path(&render_template);
+        if !Path::new(&template_path).exists() {
+            eprintln!("⚠️  Warning: Template not found: {}", template_path);
+            eprintln!("   Will fall back to default template");
+        }
+        
+        maintenance_data["render"] = serde_json::json!(render_template);
+        println!("🎨 HTML template: {}", render_template);
+    }
+
+    if let Some(redirect_path) = redirect {
+        maintenance_data["redirect"] = serde_json::json!(redirect_path);
+        println!("↪️  Redirect to: {}", redirect_path);
+    }
+
     // Write maintenance file
     match fs::write(MAINTENANCE_FILE, maintenance_data.to_string()) {
         Ok(_) => {
+            println!();
             println!("✅ Application is now in maintenance mode");
             println!();
             println!("   All requests will receive a 503 response");
+            if maintenance_data.get("secret").is_some() {
+                println!("   Bypass: Add /{} to any URL", maintenance_data["secret"].as_str().unwrap());
+            }
             println!("   To bring the application back up, run:");
             println!("   cargo run --bin ironclad -- up");
         }
@@ -115,6 +181,15 @@ fn maintenance_down(message: Option<String>, retry: u32) {
             eprintln!("❌ Failed to create maintenance file: {}", e);
             process::exit(1);
         }
+    }
+}
+
+fn parse_template_path(template: &str) -> String {
+    if template.contains("::") {
+        let parts: Vec<&str> = template.split("::").collect();
+        format!("templates/render/down/{}/{}.html", parts[0], parts[1])
+    } else {
+        format!("templates/render/down/{}/default.html", template)
     }
 }
 
@@ -144,10 +219,8 @@ async fn check_database() {
     println!("🔍 Checking database connection...");
     println!();
 
-    // Load .env
     dotenv::dotenv().ok();
 
-    // Get database URL
     let database_url = match std::env::var("DATABASE_URL") {
         Ok(url) => url,
         Err(_) => {
@@ -160,7 +233,6 @@ async fn check_database() {
     println!("📍 Database: {}", mask_connection_string(&database_url));
     println!();
 
-    // Connect to database
     print!("🔌 Connecting... ");
     let pool = match PgPool::connect(&database_url).await {
         Ok(pool) => {
@@ -181,7 +253,6 @@ async fn check_database() {
         }
     };
 
-    // Ping database
     print!("📡 Sending ping... ");
     match sqlx::query("SELECT 1").execute(&pool).await {
         Ok(_) => {
@@ -199,12 +270,10 @@ async fn check_database() {
         }
     }
 
-    // Close pool
     pool.close().await;
 }
 
 fn mask_connection_string(url: &str) -> String {
-    // Hide password in connection string
     if let Some(at_pos) = url.rfind('@') {
         if let Some(colon_pos) = url[..at_pos].rfind(':') {
             let mut masked = url.to_string();

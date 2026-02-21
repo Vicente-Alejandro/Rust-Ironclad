@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Maintenance</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0f3;
+        }
+        
+        .terminal {
+            background: #0a0a0a;
+            border: 2px solid #0f3;
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 700px;
+            box-shadow: 0 0 20px rgba(0, 255, 51, 0.3);
+        }
+        
+        .header {
+            border-bottom: 1px solid #0f3;
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .prompt {
+            color: #0af;
+        }
+        
+        .command {
+            margin: 0.5rem 0;
+            line-height: 1.8;
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .status {
+            color: #fa0;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="header">
+            <div class="command">
+                <span class="prompt">root@ironclad:~$</span> systemctl status database
+            </div>
+        </div>
+        <div class="status">
+            ● database.service - PostgreSQL Database<br>
+            &nbsp;&nbsp;&nbsp;Loaded: maintenance mode<br>
+            &nbsp;&nbsp;&nbsp;Active: <span style="color: #fa0;">inactive (maintenance)</span><br>
+        </div>
+        <div class="command" style="margin-top: 2rem;">
+            <span class="prompt">root@ironclad:~$</span> cat /var/log/maintenance.log
+        </div>
+        <div class="command" style="color: #fa0;">
+            [{{TIMESTAMP}}] {{MESSAGE}}
+        </div>
+        <div class="command" style="color: #0af; margin-top: 2rem;">
+            [INFO] Retry after: {{RETRY}}s
+        </div>
+        <div class="command" style="margin-top: 2rem;">
+            <span class="prompt">root@ironclad:~$</span> <span class="blink">█</span>
+        </div>
+    </div>
+</body>
+</html>

@@ -456,10 +456,13 @@ Put your application into maintenance mode to safely perform updates:
 # Enable maintenance mode
 cargo run --bin ironclad -- down
 
+# Custom retry time (in seconds)
+cargo run --bin ironclad -- down --retry 30
+
 # With custom message
 cargo run --bin ironclad -- down --message "Database migration in progress"
 
-# With custom retry time (in seconds)
+# With custom retry 
 cargo run --bin ironclad -- down --message "Scheduled maintenance" --retry 300
 ```
 
@@ -574,6 +577,7 @@ alias ironclad='cargo run --bin ironclad --'
 ironclad version
 ironclad db-check
 ironclad down --message "Updating..."
+ironclad -- down --retry 30
 ```
 
 **PowerShell (Windows):**
@@ -585,6 +589,7 @@ function ironclad { cargo run --bin ironclad -- $args }
 ironclad version
 ironclad db-check
 ironclad down --message "Updating..."
+ironclad -- down --retry 30 
 ```
 
 **Install globally for production:**
