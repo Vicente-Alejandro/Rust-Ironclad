@@ -1578,6 +1578,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
 
 [[package]]
+name = "ironclad"
+version = "0.0.3"
+dependencies = [
+ "actix-cors",
+ "actix-rt",
+ "actix-web",
+ "anyhow",
+ "async-trait",
+ "bcrypt",
+ "chrono",
+ "clap",
+ "config",
+ "dotenv",
+ "futures",
+ "jsonwebtoken",
+ "lazy_static",
+ "mockall",
+ "mongodb",
+ "reqwest",
+ "rustc_version_runtime 0.3.0",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "sysinfo",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "tracing-actix-web",
+ "tracing-subscriber",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3313,41 +3348,6 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "template_project"
-version = "0.0.3"
-dependencies = [
- "actix-cors",
- "actix-rt",
- "actix-web",
- "anyhow",
- "async-trait",
- "bcrypt",
- "chrono",
- "clap",
- "config",
- "dotenv",
- "futures",
- "jsonwebtoken",
- "lazy_static",
- "mockall",
- "mongodb",
- "reqwest",
- "rustc_version_runtime 0.3.0",
- "serde",
- "serde_json",
- "sqlx",
- "sysinfo",
- "thiserror 1.0.69",
- "tokio",
- "tokio-test",
- "tracing",
- "tracing-actix-web",
- "tracing-subscriber",
- "uuid",
- "validator",
 ]
 
 [[package]]

@@ -201,7 +201,7 @@ This framework follows **Domain-Driven Design (DDD)** with a clean 5-layer archi
 #### 1️⃣ Clone & Configure
 ```bash
 git clone <repository>
-cd template_project
+cd ironclad
 cp .env.example .env
 # Edit .env with your database credentials
 ```
@@ -224,7 +224,7 @@ cargo run
 
 # Release (optimized)
 cargo build --release
-./target/release/template_project
+./target/release/ironclad
 ```
 
 ✅ Server running at `http://127.0.0.1:8080`
@@ -389,24 +389,235 @@ If this framework helps you, consider giving it a star! ⭐
 
 ---
 
-<div align="center">
-To run the server you must use cargo run --bin main
-can change this on Cargo.toml file
+---
 
-To use CLI commands:
+## 🖥️ CLI Commands
 
-cargo run --bin ironclad -- $arg
+The framework includes a powerful CLI tool inspired by Laravel Artisan for common development tasks.
 
-Example:
-cargo run --bin ironclad -- test
+### Running the Application
 
-Server up & down with:
+The project has two binaries configured:
 
+| Binary | Command | Purpose |
+|--------|---------|---------|
+| **`ironclad`** | `cargo run` | API Server (default) |
+| **`ironclad`** | `cargo run --bin ironclad` | CLI Tool |
+
+> **Note:** You can change the default binary in `Cargo.toml` under `[package]` → `default-run`
+
+---
+
+### 📋 Available Commands
+
+#### **System Information**
+```bash
+# Show framework version and info
+cargo run --bin ironclad -- version
+```
+
+**Output:**
+```
+╔════════════════════════════════════════╗
+║   🦀 Rust Ironclad Framework v0.0.3   ║
+╚════════════════════════════════════════╝
+
+Framework: Rust Ironclad
+Version: 0.0.3
+```
+
+---
+
+#### **Database Operations**
+```bash
+# Check database connection and health
+cargo run --bin ironclad -- db-check
+```
+
+**Output:**
+```
+🔍 Checking database connection...
+📍 Database: postgresql://postgres:****@localhost:5432/rust
+
+🔌 Connecting... ✅
+📡 Sending ping... ✅
+
+╔═══════════════════════════════╗
+║  ✅ Database is UP and ready  ║
+╚═══════════════════════════════╝
+```
+
+---
+
+#### **Maintenance Mode** (Laravel-style)
+
+Put your application into maintenance mode to safely perform updates:
+```bash
+# Enable maintenance mode
+cargo run --bin ironclad -- down
+
+# With custom message
+cargo run --bin ironclad -- down --message "Database migration in progress"
+
+# With custom retry time (in seconds)
+cargo run --bin ironclad -- down --message "Scheduled maintenance" --retry 300
+```
+
+**While in maintenance mode, all API requests return:**
+```json
+{
+  "error": "Service Unavailable",
+  "message": "Database migration in progress",
+  "status": 503,
+  "retry_after": 60
+}
+```
+
+**Bring the application back online:**
+```bash
+# Disable maintenance mode
 cargo run --bin ironclad -- up
-cargo run --bin ironclad -- down --message "Your message"
-</div>
+```
 
-<div align="center">
+---
+
+#### **Diagnostics**
+```bash
+# Run CLI system checks
+cargo run --bin ironclad -- test
+```
+
+---
+
+### 🚀 Quick Reference
+
+<table>
+<tr>
+<th>Task</th>
+<th>Command</th>
+</tr>
+
+<tr>
+<td>Start API Server</td>
+<td>
+```bash
+cargo run
+```
+
+</td>
+</tr>
+
+<tr>
+<td>Show CLI Help</td>
+<td>
+```bash
+cargo run --bin ironclad -- --help
+```
+
+</td>
+</tr>
+
+<tr>
+<td>Check Database</td>
+<td>
+```bash
+cargo run --bin ironclad -- db-check
+```
+
+</td>
+</tr>
+
+<tr>
+<td>Enable Maintenance</td>
+<td>
+```bash
+cargo run --bin ironclad -- down
+```
+
+</td>
+</tr>
+
+<tr>
+<td>Disable Maintenance</td>
+<td>
+```bash
+cargo run --bin ironclad -- up
+```
+
+</td>
+</tr>
+
+<tr>
+<td>Version Info</td>
+<td>
+```bash
+cargo run --bin ironclad -- version
+```
+
+</td>
+</tr>
+
+</table>
+
+---
+
+### 💡 Pro Tips
+
+**Create an alias for faster development:**
+
+**Bash/Zsh (Linux/macOS):**
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+alias ironclad='cargo run --bin ironclad --'
+
+# Usage
+ironclad version
+ironclad db-check
+ironclad down --message "Updating..."
+```
+
+**PowerShell (Windows):**
+```powershell
+# Add to your PowerShell profile
+function ironclad { cargo run --bin ironclad -- $args }
+
+# Usage
+ironclad version
+ironclad db-check
+ironclad down --message "Updating..."
+```
+
+**Install globally for production:**
+```bash
+cargo install --path . --bin ironclad
+
+# Now use directly
+ironclad version
+ironclad up
+ironclad down
+```
+
+---
+
+### 🛠️ Development Workflow
+```bash
+# 1. Start the server
+cargo run
+
+# 2. In another terminal, check database
+cargo run --bin ironclad -- db-check
+
+# 3. Put in maintenance mode for updates
+cargo run --bin ironclad -- down --message "Deploying new features"
+
+# 4. Run migrations, updates, etc.
+sqlx migrate run
+
+# 5. Bring back online
+cargo run --bin ironclad -- up
+```
+
+---
 
 Questions? Create an [issue](https://github.com/Vicente-Alejandro/Rust-Ironclad/issues) or [PR](https://github.com/Vicente-Alejandro/Rust-Ironclad/pulls)
 

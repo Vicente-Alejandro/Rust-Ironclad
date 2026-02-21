@@ -39,7 +39,7 @@ mod middleware;
 mod routes;
 
 use middleware::MaintenanceMode;
-use actix_web::{middleware::Logger, web, App, HttpServer};
+use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use tracing_subscriber;
 use tracing_actix_web::TracingLogger;
@@ -50,37 +50,12 @@ use infrastructure::{PostgresUserRepository, PostgresTestItemRepository};
 use application::{AuthService, UserService, TestItemService};
 use interfaces::{UserRepository, TestItemRepository};
 
-// use infrastructure::{*};
-// use application::{*};
-// use interfaces::{*};
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // ============================================
     // Initial Configuration
     // ============================================
     let app_config = AppConfig::from_env().expect("Failed to load config");
-
-    // Configure logging - ensure visibility
-    // tracing_subscriber::fmt()
-        // .with_max_level(tracing::Level::DEBUG)
-        // .with_target(true)
-        // .with_thread_ids(true)
-        // .with_file(true)
-        // .with_line_number(true)
-        // .with_env_filter(
-        //      tracing_subscriber::EnvFilter::from_default_env()
-        //          .add_directive("template_project=debug".parse().unwrap()),
-        //  )
-        // .pretty()
-        // .init();
-
-    // tracing_subscriber::fmt()
-    //     .with_env_filter(
-    //         tracing_subscriber::EnvFilter::from_default_env()
-    //             .add_directive("template_project=debug".parse().unwrap()),
-    //     )
-    //     .init();
 
     // Configure logging - Clean, minimal output with bulletproof visibility
     tracing_subscriber::fmt()
@@ -93,7 +68,7 @@ async fn main() -> std::io::Result<()> {
         .with_env_filter(
             // SOLUTION: "info" as the global baseline, "warn" to silence Actix startup noise,
             // and "debug" exclusively for your project's submodules.
-            tracing_subscriber::EnvFilter::new("info,actix_server=warn,template_project=debug")
+            tracing_subscriber::EnvFilter::new("info,actix_server=warn,ironclads=debug")
         )
         .init();
 
