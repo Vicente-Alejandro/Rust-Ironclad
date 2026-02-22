@@ -42,14 +42,6 @@
             font-size: 1rem;
         }
 
-        .auto-refresh {
-            float: right;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-        }
-
         .status-badge {
             display: inline-block;
             padding: 0.25rem 0.75rem;
@@ -60,20 +52,8 @@
             letter-spacing: 0.5px;
         }
 
-        .status-up {
-            background: #10b981;
-            color: white;
-        }
-
-        .status-down {
-            background: #ef4444;
-            color: white;
-        }
-
-        .status-degraded {
-            background: #f59e0b;
-            color: white;
-        }
+        .status-up { background: #10b981; color: white; }
+        .status-down { background: #ef4444; color: white; }
 
         .grid {
             display: grid;
@@ -107,9 +87,7 @@
             gap: 0.5rem;
         }
 
-        .card-icon {
-            font-size: 1.5rem;
-        }
+        .card-icon { font-size: 1.5rem; }
 
         .metric {
             display: flex;
@@ -118,9 +96,7 @@
             border-bottom: 1px solid #334155;
         }
 
-        .metric:last-child {
-            border-bottom: none;
-        }
+        .metric:last-child { border-bottom: none; }
 
         .metric-label {
             color: #94a3b8;
@@ -147,13 +123,8 @@
             transition: width 0.3s ease;
         }
 
-        .progress-fill.warning {
-            background: linear-gradient(90deg, #f59e0b, #ef4444);
-        }
-
-        .progress-fill.danger {
-            background: #ef4444;
-        }
+        .progress-fill.warning { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+        .progress-fill.danger { background: #ef4444; }
 
         .disk-list {
             display: flex;
@@ -179,6 +150,7 @@
             color: #3b82f6;
         }
 
+        /* Update Indicator & Switch Styles */
         .update-indicator {
             position: fixed;
             top: 1rem;
@@ -189,7 +161,7 @@
             border: 1px solid #334155;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
             z-index: 1000;
         }
@@ -202,16 +174,57 @@
             animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.5;
-                transform: scale(1.2);
-            }
+        .pulse.paused {
+            animation: none;
+            background: #ef4444;
         }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #475569;
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: #3b82f6; }
+        input:focus + .slider { box-shadow: 0 0 1px #3b82f6; }
+        input:checked + .slider:before { transform: translateX(16px); }
 
         .timestamp {
             font-size: 0.75rem;
@@ -221,26 +234,20 @@
         }
 
         @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-            
-            .grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .auto-refresh {
-                float: none;
-                display: block;
-                margin-top: 1rem;
-            }
+            body { padding: 1rem; }
+            .grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
     <div class="update-indicator">
-        <div class="pulse"></div>
-        <span>Auto-refresh: <span id="countdown">3</span>s</span>
+        <div class="pulse" id="status-pulse"></div>
+        <span id="refresh-text">Auto-refresh: <span id="countdown">0.25</span>s</span>
+        
+        <label class="switch">
+            <input type="checkbox" id="toggle-refresh" checked>
+            <span class="slider"></span>
+        </label>
     </div>
 
     <div class="container">
@@ -249,7 +256,6 @@
             <p class="subtitle">Rust Ironclad Framework - Real-time Monitoring</p>
         </header>
 
-        <!-- Status Overview -->
         <div class="grid">
             <div class="card">
                 <div class="card-header">
@@ -273,7 +279,6 @@
                 </div>
             </div>
 
-            <!-- CPU Info -->
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -303,7 +308,6 @@
                 </div>
             </div>
 
-            <!-- Memory Info -->
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -330,7 +334,6 @@
             </div>
         </div>
 
-        <!-- Application & Database -->
         <div class="grid">
             <div class="card">
                 <div class="card-header">
@@ -376,7 +379,6 @@
             </div>
         </div>
 
-        <!-- OS & Network -->
         <div class="grid">
             <div class="card">
                 <div class="card-header">
@@ -421,7 +423,6 @@
             </div>
         </div>
 
-        <!-- Disks -->
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
@@ -430,8 +431,7 @@
                 </div>
             </div>
             <div class="disk-list" id="disk-list">
-                <!-- Disks will be populated by JavaScript -->
-            </div>
+                </div>
         </div>
 
         <p class="timestamp" id="footer-timestamp">Last updated: Never</p>
@@ -440,7 +440,30 @@
     <script>
         let countdownTimer = 0.25;
         let countdownInterval;
-        let isFirstLoad = true; 
+        let isFirstLoad = true;
+        let autoRefreshEnabled = true;
+
+        // Elements
+        const toggleInput = document.getElementById('toggle-refresh');
+        const statusPulse = document.getElementById('status-pulse');
+        const refreshText = document.getElementById('refresh-text');
+
+        // Toggle Event Listener
+        toggleInput.addEventListener('change', (e) => {
+            autoRefreshEnabled = e.target.checked;
+            
+            if (autoRefreshEnabled) {
+                // Resume
+                statusPulse.classList.remove('paused');
+                refreshText.innerHTML = 'Auto-refresh: <span id="countdown">0.25</span>s';
+                startCountdown();
+            } else {
+                // Pause
+                statusPulse.classList.add('paused');
+                refreshText.innerHTML = '<span style="color: #ef4444; font-weight: 600;">PAUSED</span>';
+                if (countdownInterval) clearInterval(countdownInterval);
+            }
+        });
 
         async function fetchSystemInfo() {
             try {
@@ -450,7 +473,6 @@
                 const data = await response.json();
                 updateDashboard(data);
                 
-                // Update timestamp
                 document.getElementById('footer-timestamp').textContent = 
                     `Last updated: ${data.check_time_human}`;
                 
@@ -460,11 +482,11 @@
         }
 
         function updateDashboard(data) {
-            // --- DATOS DINÁMICOS (Se actualizan en cada ciclo) ---
+            // --- DYNAMIC DATA ---
             document.getElementById('uptime').textContent = formatUptime(data.application.app_uptime_seconds);
             document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
 
-            // CPU Dinámico
+            // Dynamic CPU
             const cpuUsage = data.cpu_info.global_usage_percent.toFixed(1);
             document.getElementById('cpu-usage').textContent = `${cpuUsage}%`;
             document.getElementById('cpu-frequency').textContent = `${data.cpu_info.frequency_mhz} MHz`;
@@ -475,7 +497,7 @@
             cpuProgress.style.width = `${cpuUsage}%`;
             cpuProgress.className = cpuUsage > 80 ? 'progress-fill danger' : cpuUsage > 60 ? 'progress-fill warning' : 'progress-fill';
 
-            // Memoria Dinámica
+            // Dynamic Memory
             const memPercent = data.memory_info.used_percentage.toFixed(1);
             document.getElementById('memory-percent').textContent = `${memPercent}%`;
             document.getElementById('memory-used').textContent = data.memory_info.used_human;
@@ -485,11 +507,11 @@
             memProgress.style.width = `${memPercent}%`;
             memProgress.className = memPercent > 80 ? 'progress-fill danger' : memPercent > 60 ? 'progress-fill warning' : 'progress-fill';
 
-            // Aplicación Dinámica
+            // Dynamic Application
             document.getElementById('app-memory').textContent = data.application.app_memory_human;
             document.getElementById('app-cpu').textContent = `${data.application.app_cpu_usage_percent.toFixed(1)}%`;
 
-            // Base de Datos (Estado)
+            // Database (Status)
             const dbStatus = document.getElementById('db-status');
             if (data.database.status === 'Connected') {
                 dbStatus.className = 'status-badge status-up';
@@ -499,11 +521,11 @@
                 dbStatus.textContent = 'DOWN';
             }
 
-            // Red Dinámica
+            // Dynamic Network
             document.getElementById('net-rx').textContent = data.network_info.total_rx_human;
             document.getElementById('net-tx').textContent = data.network_info.total_tx_human;
 
-            // Discos Dinámicos
+            // Dynamic Disks
             const diskList = document.getElementById('disk-list');
             diskList.innerHTML = data.disks_info.map(disk => `
                 <div class="disk-item">
@@ -524,9 +546,9 @@
                 </div>
             `).join('');
 
-            // --- DATOS ESTÁTICOS (Se actualizan SOLO la primera vez) ---
+            // --- STATIC DATA ---
             if (isFirstLoad) {
-                document.getElementById('version').textContent = '0.0.3'; // O envíalo desde el backend
+                document.getElementById('version').textContent = '0.0.3'; 
                 document.getElementById('cpu-brand').textContent = data.cpu_info.brand;
                 document.getElementById('cpu-cores').textContent = data.os_info.num_cpus;
                 
@@ -542,7 +564,7 @@
                 document.getElementById('os-hostname').textContent = data.os_info.hostname;
                 document.getElementById('os-kernel').textContent = data.os_info.kernel_version;
                 
-                isFirstLoad = false; // 2. Desactivar la bandera después de renderizar
+                isFirstLoad = false;
             }
         }
 
@@ -559,19 +581,22 @@
         }
 
         function startCountdown() {
-            countdownTimer = 0.25; // Inicial value
-            document.getElementById('countdown').textContent = countdownTimer;
+            if (!autoRefreshEnabled) return; // Prevent start if paused
+
+            countdownTimer = 0.25; 
+            const countdownEl = document.getElementById('countdown');
+            if(countdownEl) countdownEl.textContent = countdownTimer;
             
             if (countdownInterval) clearInterval(countdownInterval);
             
             countdownInterval = setInterval(() => {
-                // Rest .25 in each cycle instead of 1 (--)
                 countdownTimer -= 0.25; 
-                document.getElementById('countdown').textContent = countdownTimer;
+                const el = document.getElementById('countdown');
+                if(el) el.textContent = countdownTimer;
                 
                 if (countdownTimer <= 0) {
                     fetchSystemInfo();
-                    startCountdown();
+                    startCountdown(); 
                 }
             }, 250); 
         }
