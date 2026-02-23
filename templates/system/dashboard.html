@@ -4,250 +4,160 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Dashboard - Ironclad Framework</title>
+    
+    <link rel="stylesheet" href="/static/clock.css">
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        /* =========================================================
+           ESTILOS PRINCIPALES DEL DASHBOARD
+           ========================================================= */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-            padding: 2rem;
+            background: #0f172a; color: #e2e8f0; padding: 2rem; min-height: 100vh;
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
+        .container { max-width: 1400px; margin: 0 auto; }
         header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem;
-            border-radius: 12px;
-            margin-bottom: 2rem;
+            padding: 2rem; border-radius: 12px; margin-bottom: 2rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
-
-        h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .subtitle {
-            opacity: 0.9;
-            font-size: 1rem;
-        }
-
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .subtitle { opacity: 0.9; font-size: 1rem; }
         .status-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px;
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
         }
-
         .status-up { background: #10b981; color: white; }
         .status-down { background: #ef4444; color: white; }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .card {
-            background: #1e293b;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            border: 1px solid #334155;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid #334155;
-        }
-
-        .card-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); border: 1px solid #334155; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #334155; }
+        .card-title { font-size: 1.125rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
         .card-icon { font-size: 1.5rem; }
-
-        .metric {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #334155;
-        }
-
+        .metric { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid #334155; }
         .metric:last-child { border-bottom: none; }
-
-        .metric-label {
-            color: #94a3b8;
-            font-size: 0.875rem;
-        }
-
-        .metric-value {
-            font-weight: 600;
-            font-family: 'Courier New', monospace;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #334155;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #10b981, #3b82f6);
-            transition: width 0.3s ease;
-        }
-
+        .metric-label { color: #94a3b8; font-size: 0.875rem; }
+        .metric-value { font-weight: 600; font-family: 'Courier New', monospace; }
+        .progress-bar { width: 100%; height: 8px; background: #334155; border-radius: 4px; overflow: hidden; margin-top: 0.5rem; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.3s ease; }
         .progress-fill.warning { background: linear-gradient(90deg, #f59e0b, #ef4444); }
         .progress-fill.danger { background: #ef4444; }
+        .disk-list { display: flex; flex-direction: column; gap: 1rem; }
+        .disk-item { background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155; }
+        .disk-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .disk-name { font-weight: 600; color: #3b82f6; }
 
-        .disk-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
+        /* Panels Positioning */
+        .left-panel, .right-panel { position: fixed; top: 1rem; z-index: 1000; display: flex; flex-direction: column; gap: 1rem; }
+        .left-panel { left: 1rem; }
+        .right-panel { right: 1rem; }
 
-        .disk-item {
-            background: #0f172a;
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid #334155;
-        }
-
-        .disk-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-
-        .disk-name {
-            font-weight: 600;
-            color: #3b82f6;
-        }
-
-        /* Update Indicator & Switch Styles */
-        .update-indicator {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            background: #1e293b;
-            padding: 0.75rem 1.25rem;
-            border-radius: 8px;
-            border: 1px solid #334155;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-        }
-
-        .pulse {
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .pulse.paused {
-            animation: none;
-            background: #ef4444;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-        }
-
-        /* Toggle Switch */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 36px;
-            height: 20px;
-        }
-
-        .switch input { 
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #475569;
-            transition: .4s;
-            border-radius: 20px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 14px;
-            width: 14px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
+        /* Right Panel - Controles */
+        .update-indicator { background: #1e293b; padding: 1rem; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); min-width: 220px; backdrop-filter: blur(10px); }
+        .indicator-header { display: flex; align-items: center; gap: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #334155; margin-bottom: 0.75rem; }
+        .pulse { width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; flex-shrink: 0; }
+        .pulse.paused { animation: none; background: #ef4444; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 50% { opacity: 0.8; transform: scale(1.1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } }
+        .status-text { font-size: 0.875rem; font-weight: 600; color: #e2e8f0; }
+        .status-text.paused { color: #ef4444; }
+        .controls-section { display: flex; flex-direction: column; gap: 0.75rem; }
+        .control-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+        .control-label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .3s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         input:checked + .slider { background-color: #3b82f6; }
-        input:focus + .slider { box-shadow: 0 0 1px #3b82f6; }
-        input:checked + .slider:before { transform: translateX(16px); }
+        input:checked + .slider:before { transform: translateX(20px); }
+        
+        .interval-select { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 0.5rem; border-radius: 6px; font-size: 0.875rem; cursor: pointer; outline: none; width: 100%; transition: all 0.2s; }
+        .interval-select:hover, .interval-select:focus { border-color: #3b82f6; }
+        .interval-select option { background: #1e293b; color: #e2e8f0; }
+        
+        .custom-input-wrapper { display: flex; align-items: center; gap: 0.5rem; opacity: 0; max-height: 0; overflow: hidden; transition: all 0.3s ease; }
+        .custom-input-wrapper.visible { opacity: 1; max-height: 40px; }
+        .custom-input { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 0.5rem; border-radius: 6px; font-size: 0.875rem; width: 80px; text-align: center; outline: none; transition: all 0.2s; }
+        .custom-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .custom-input:disabled { opacity: 0.5; cursor: not-allowed; }
+        .unit-label { font-size: 0.75rem; color: #64748b; }
+        
+        .countdown-display { background: #0f172a; padding: 0.5rem; border-radius: 6px; text-align: center; font-family: 'Courier New', monospace; font-size: 0.875rem; color: #3b82f6; border: 1px solid #334155; font-weight: 600; }
+        .countdown-display.paused { color: #64748b; background: #1e293b; }
+        .timestamp { font-size: 0.75rem; color: #64748b; margin-top: 1rem; text-align: center; }
 
-        .timestamp {
-            font-size: 0.75rem;
-            color: #64748b;
-            margin-top: 1rem;
-            text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            body { padding: 1rem; }
-            .grid { grid-template-columns: 1fr; }
+        @media (max-width: 1200px) {
+            .left-panel, .right-panel { position: relative; top: auto; left: auto; right: auto; margin-bottom: 1rem; width: 100%; max-width: 400px; margin: 0 auto 1rem auto; }
+            body { padding-top: 1rem; }
         }
     </style>
 </head>
 <body>
-    <div class="update-indicator">
-        <div class="pulse" id="status-pulse"></div>
-        <span id="refresh-text">Auto-refresh: <span id="countdown">0.25</span>s</span>
-        
-        <label class="switch">
-            <input type="checkbox" id="toggle-refresh" checked>
-            <span class="slider"></span>
-        </label>
+    <div class="left-panel">
+        <div class="clock-panel">
+            <div class="clock-title">System Time</div>
+            
+            <div class="watch-selector">
+                <select class="watch-select" id="watch-style-select">
+                    <option value="quartz">Ironclad Quartz</option>
+                    <option value="automatic">Ironclad Automatic IH(18.8k)</option>
+                    <option value="digital">Ironclad W800 (Digital)</option>
+                </select>
+                <div id="watch-description" class="watch-desc">Quartz Module 1Hz<br>Cushion Case</div>
+            </div>
+
+            <div class="watch-container">
+                <div id="watch-case" class="watch-case quartz">
+                    <div class="watch-crown" id="watch-crown"></div>
+                    <div class="watch-face" id="watch-face"></div>
+                </div>
+            </div>
+            
+            <div class="digital-time" id="digital-time">00:00:00</div>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="update-indicator">
+            <div class="indicator-header">
+                <div class="pulse" id="status-pulse"></div>
+                <span class="status-text" id="status-text">Live Updates</span>
+            </div>
+
+            <div class="controls-section">
+                <div class="control-row">
+                    <span class="control-label">Auto-refresh</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-refresh" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="control-row" style="flex-direction: column; align-items: stretch; gap: 0.25rem;">
+                    <span class="control-label">Interval</span>
+                    <select class="interval-select" id="interval-select">
+                        <option value="0.25">0.25 seconds (Fast)</option>
+                        <option value="0.5">0.5 seconds</option>
+                        <option value="1">1 second</option>
+                        <option value="5">5 seconds</option>
+                        <option value="10">10 seconds</option>
+                        <option value="30">30 seconds</option>
+                        <option value="60">1 minute</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                </div>
+
+                <div class="custom-input-wrapper" id="custom-wrapper">
+                    <input type="number" class="custom-input" id="custom-interval" min="0.25" max="3600" step="0.1" value="2.5" placeholder="Seconds">
+                    <span class="unit-label">seconds</span>
+                </div>
+
+                <div class="countdown-display" id="countdown-display">
+                    Next: 0.25s
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -259,245 +169,291 @@
         <div class="grid">
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-icon">❤️</span>
-                        Health Status
-                    </div>
+                    <div class="card-title"><span class="card-icon">❤️</span> Health Status</div>
                     <span id="health-status" class="status-badge status-up">UP</span>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Version</span>
-                    <span class="metric-value" id="version">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Uptime</span>
-                    <span class="metric-value" id="uptime">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Last Check</span>
-                    <span class="metric-value" id="last-check">-</span>
-                </div>
+                <div class="metric"><span class="metric-label">Version</span><span class="metric-value" id="version">-</span></div>
+                <div class="metric"><span class="metric-label">Uptime</span><span class="metric-value" id="uptime">-</span></div>
+                <div class="metric"><span class="metric-label">Last Check</span><span class="metric-value" id="last-check">-</span></div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-icon">⚡</span>
-                        CPU
-                    </div>
+                    <div class="card-title"><span class="card-icon">⚡</span> CPU</div>
                     <span class="metric-value" id="cpu-usage">0%</span>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Brand</span>
-                    <span class="metric-value" id="cpu-brand">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Cores</span>
-                    <span class="metric-value" id="cpu-cores">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Frequency</span>
-                    <span class="metric-value" id="cpu-frequency">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Temperature</span>
-                    <span class="metric-value" id="cpu-temp">-</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="cpu-progress" style="width: 0%"></div>
-                </div>
+                <div class="metric"><span class="metric-label">Brand</span><span class="metric-value" id="cpu-brand">-</span></div>
+                <div class="metric"><span class="metric-label">Cores</span><span class="metric-value" id="cpu-cores">-</span></div>
+                <div class="metric"><span class="metric-label">Frequency</span><span class="metric-value" id="cpu-frequency">-</span></div>
+                <div class="metric"><span class="metric-label">Temperature</span><span class="metric-value" id="cpu-temp">-</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="cpu-progress" style="width: 0%"></div></div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-icon">💾</span>
-                        Memory
-                    </div>
+                    <div class="card-title"><span class="card-icon">💾</span> Memory</div>
                     <span class="metric-value" id="memory-percent">0%</span>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Total</span>
-                    <span class="metric-value" id="memory-total">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Used</span>
-                    <span class="metric-value" id="memory-used">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Free</span>
-                    <span class="metric-value" id="memory-free">-</span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="memory-progress" style="width: 0%"></div>
-                </div>
+                <div class="metric"><span class="metric-label">Total</span><span class="metric-value" id="memory-total">-</span></div>
+                <div class="metric"><span class="metric-label">Used</span><span class="metric-value" id="memory-used">-</span></div>
+                <div class="metric"><span class="metric-label">Free</span><span class="metric-value" id="memory-free">-</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="memory-progress" style="width: 0%"></div></div>
             </div>
         </div>
 
         <div class="grid">
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-icon">🚀</span>
-                        Application
-                    </div>
+                    <div class="card-title"><span class="card-icon">🚀</span> Application</div>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Memory Usage</span>
-                    <span class="metric-value" id="app-memory">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">CPU Usage</span>
-                    <span class="metric-value" id="app-cpu">-</span>
-                </div>
+                <div class="metric"><span class="metric-label">Memory Usage</span><span class="metric-value" id="app-memory">-</span></div>
+                <div class="metric"><span class="metric-label">CPU Usage</span><span class="metric-value" id="app-cpu">-</span></div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-icon">🗄️</span>
-                        Database
-                    </div>
+                    <div class="card-title"><span class="card-icon">🗄️</span> Database</div>
                     <span id="db-status" class="status-badge status-up">UP</span>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Name</span>
-                    <span class="metric-value" id="db-name">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Size</span>
-                    <span class="metric-value" id="db-size">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Version</span>
-                    <span class="metric-value" id="db-version" style="font-size: 0.75rem;">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Data Directory</span>
-                    <span class="metric-value" id="db-directory" style="font-size: 0.75rem;">-</span>
-                </div>
+                <div class="metric"><span class="metric-label">Name</span><span class="metric-value" id="db-name">-</span></div>
+                <div class="metric"><span class="metric-label">Size</span><span class="metric-value" id="db-size">-</span></div>
+                <div class="metric"><span class="metric-label">Version</span><span class="metric-value" id="db-version" style="font-size: 0.75rem;">-</span></div>
+                <div class="metric"><span class="metric-label">Data Directory</span><span class="metric-value" id="db-directory" style="font-size: 0.75rem;">-</span></div>
             </div>
         </div>
 
         <div class="grid">
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-icon">💻</span>
-                        Operating System
-                    </div>
+                    <div class="card-title"><span class="card-icon">💻</span> Operating System</div>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Platform</span>
-                    <span class="metric-value" id="os-platform">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Distribution</span>
-                    <span class="metric-value" id="os-distro">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Hostname</span>
-                    <span class="metric-value" id="os-hostname">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Kernel</span>
-                    <span class="metric-value" id="os-kernel">-</span>
-                </div>
+                <div class="metric"><span class="metric-label">Platform</span><span class="metric-value" id="os-platform">-</span></div>
+                <div class="metric"><span class="metric-label">Distribution</span><span class="metric-value" id="os-distro">-</span></div>
+                <div class="metric"><span class="metric-label">Hostname</span><span class="metric-value" id="os-hostname">-</span></div>
+                <div class="metric"><span class="metric-label">Kernel</span><span class="metric-value" id="os-kernel">-</span></div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-icon">🌐</span>
-                        Network
-                    </div>
+                    <div class="card-title"><span class="card-icon">🌐</span> Network</div>
                 </div>
-                <div class="metric">
-                    <span class="metric-label">Total Received</span>
-                    <span class="metric-value" id="net-rx">-</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Total Transmitted</span>
-                    <span class="metric-value" id="net-tx">-</span>
-                </div>
+                <div class="metric"><span class="metric-label">Total Received</span><span class="metric-value" id="net-rx">-</span></div>
+                <div class="metric"><span class="metric-label">Total Transmitted</span><span class="metric-value" id="net-tx">-</span></div>
             </div>
         </div>
 
         <div class="card">
             <div class="card-header">
-                <div class="card-title">
-                    <span class="card-icon">💿</span>
-                    Disk Storage
-                </div>
+                <div class="card-title"><span class="card-icon">💿</span> Disk Storage</div>
             </div>
-            <div class="disk-list" id="disk-list">
-                </div>
+            <div class="disk-list" id="disk-list"></div>
         </div>
 
         <p class="timestamp" id="footer-timestamp">Last updated: Never</p>
     </div>
 
+    <script src="/static/clock.js"></script>
+    
     <script>
-        let countdownTimer = 0.25;
-        let countdownInterval;
+        /* =========================================================
+           DASHBOARD SYSTEM & LOCAL STORAGE
+           ========================================================= */
+        let config = {
+            intervalSeconds: 0.25,
+            isCustom: false,
+            autoRefresh: true,
+            countdown: 0.25
+        };
+        
+        let countdownInterval = null;
         let isFirstLoad = true;
-        let autoRefreshEnabled = true;
+        let lastTick = Date.now();
 
-        // Elements
-        const toggleInput = document.getElementById('toggle-refresh');
-        const statusPulse = document.getElementById('status-pulse');
-        const refreshText = document.getElementById('refresh-text');
+        const elements = {
+            toggle: document.getElementById('toggle-refresh'),
+            select: document.getElementById('interval-select'),
+            customWrapper: document.getElementById('custom-wrapper'),
+            customInput: document.getElementById('custom-interval'),
+            countdownDisplay: document.getElementById('countdown-display'),
+            statusPulse: document.getElementById('status-pulse'),
+            statusText: document.getElementById('status-text')
+        };
 
-        // Toggle Event Listener
-        toggleInput.addEventListener('change', (e) => {
-            autoRefreshEnabled = e.target.checked;
+        function loadConfig() {
+            const savedType = localStorage.getItem('ironclad_interval_type');
+            const savedCustom = localStorage.getItem('ironclad_custom_value');
             
-            if (autoRefreshEnabled) {
-                // Resume
-                statusPulse.classList.remove('paused');
-                refreshText.innerHTML = 'Auto-refresh: <span id="countdown">0.25</span>s';
-                startCountdown();
-            } else {
-                // Pause
-                statusPulse.classList.add('paused');
-                refreshText.innerHTML = '<span style="color: #ef4444; font-weight: 600;">PAUSED</span>';
-                if (countdownInterval) clearInterval(countdownInterval);
+            if (savedType) {
+                elements.select.value = savedType;
+                if (savedType === 'custom') {
+                    config.isCustom = true;
+                    elements.customWrapper.classList.add('visible');
+                    // Safety check: Don't load anything less than 0.25
+                    let cVal = parseFloat(savedCustom);
+                    if (isNaN(cVal) || cVal < 0.25) cVal = 0.25;
+                    
+                    elements.customInput.value = cVal;
+                    config.intervalSeconds = cVal;
+                } else {
+                    config.intervalSeconds = parseFloat(savedType);
+                }
             }
-        });
+        }
+
+        function saveConfig() {
+            localStorage.setItem('ironclad_interval_type', elements.select.value);
+            if (config.isCustom) {
+                let val = parseFloat(elements.customInput.value);
+                // Security rule: Never save anything < 0.25s
+                val = Math.max(0.25, val); 
+                localStorage.setItem('ironclad_custom_value', val);
+            }
+        }
+
+        function initDashboard() {
+            loadConfig();
+            setupEventListeners();
+            startPolling();
+        }
+
+        function setupEventListeners() {
+            elements.toggle.addEventListener('change', (e) => {
+                config.autoRefresh = e.target.checked;
+                updateUIState();
+                if (config.autoRefresh) startPolling();
+                else stopPolling();
+            });
+
+            elements.select.addEventListener('change', (e) => {
+                const value = e.target.value;
+                if (value === 'custom') {
+                    config.isCustom = true;
+                    elements.customWrapper.classList.add('visible');
+                    let customValue = parseFloat(elements.customInput.value);
+                    if (isNaN(customValue) || customValue < 0.25) customValue = 0.25;
+                    elements.customInput.value = customValue;
+                    config.intervalSeconds = customValue;
+                } else {
+                    config.isCustom = false;
+                    elements.customWrapper.classList.remove('visible');
+                    config.intervalSeconds = parseFloat(value);
+                }
+                saveConfig();
+                resetCountdown();
+            });
+
+            elements.customInput.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                // Update live only if safe, but don't force UI override while typing
+                if (value >= 0.25 && value <= 3600) {
+                    config.intervalSeconds = value;
+                    saveConfig();
+                    resetCountdown();
+                }
+            });
+
+            elements.customInput.addEventListener('blur', (e) => {
+                let value = parseFloat(e.target.value);
+                if (isNaN(value) || value < 0.25) value = 0.25;
+                if (value > 3600) value = 3600;
+                e.target.value = value;
+                config.intervalSeconds = value;
+                saveConfig();
+                resetCountdown();
+            });
+        }
+
+        function updateUIState() {
+            if (config.autoRefresh) {
+                elements.statusPulse.classList.remove('paused');
+                elements.statusText.classList.remove('paused');
+                elements.statusText.textContent = 'Live Updates';
+                elements.countdownDisplay.classList.remove('paused');
+                elements.select.disabled = false;
+                elements.customInput.disabled = false;
+            } else {
+                elements.statusPulse.classList.add('paused');
+                elements.statusText.classList.add('paused');
+                elements.statusText.textContent = 'Paused';
+                elements.countdownDisplay.classList.add('paused');
+                elements.countdownDisplay.textContent = 'Paused';
+                elements.select.disabled = true;
+                elements.customInput.disabled = true;
+            }
+        }
+
+        function resetCountdown() {
+            config.countdown = config.intervalSeconds;
+            updateCountdownDisplay();
+        }
+
+        function updateCountdownDisplay() {
+            if (!config.autoRefresh) return;
+            const displayValue = config.countdown < 1 
+                ? `${config.countdown.toFixed(2)}s` 
+                : `${Math.ceil(config.countdown)}s`;
+            elements.countdownDisplay.textContent = `Next: ${displayValue}`;
+        }
+
+        function startPolling() {
+            stopPolling();
+            lastTick = Date.now();
+            config.countdown = config.intervalSeconds;
+            updateCountdownDisplay();
+            
+            const tick = () => {
+                if (!config.autoRefresh) return;
+                const now = Date.now();
+                const delta = (now - lastTick) / 1000;
+                lastTick = now;
+                
+                config.countdown -= delta;
+                
+                if (config.countdown <= 0) {
+                    fetchSystemInfo();
+                    config.countdown = config.intervalSeconds;
+                }
+                updateCountdownDisplay();
+            };
+            countdownInterval = setInterval(tick, 50); // Fast tick to keep UI smooth
+        }
+
+        function stopPolling() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
 
         async function fetchSystemInfo() {
             try {
                 const response = await fetch('/api/administration/system-json');
                 if (!response.ok) throw new Error('Failed to fetch');
-                
                 const data = await response.json();
                 updateDashboard(data);
                 
                 document.getElementById('footer-timestamp').textContent = 
                     `Last updated: ${data.check_time_human}`;
-                
             } catch (error) {
                 console.error('Error fetching system info:', error);
+                elements.statusPulse.style.background = '#f59e0b'; // Warning state
+                setTimeout(() => elements.statusPulse.style.background = '', 1000);
             }
         }
 
         function updateDashboard(data) {
-            // --- DYNAMIC DATA ---
             document.getElementById('uptime').textContent = formatUptime(data.application.app_uptime_seconds);
             document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
 
-            // Dynamic CPU
             const cpuUsage = data.cpu_info.global_usage_percent.toFixed(1);
             document.getElementById('cpu-usage').textContent = `${cpuUsage}%`;
             document.getElementById('cpu-frequency').textContent = `${data.cpu_info.frequency_mhz} MHz`;
-            document.getElementById('cpu-temp').textContent = 
-                data.cpu_info.temperature_celsius ? `${data.cpu_info.temperature_celsius.toFixed(1)}°C` : 'N/A';
+            document.getElementById('cpu-temp').textContent = data.cpu_info.temperature_celsius ? `${data.cpu_info.temperature_celsius.toFixed(1)}°C` : 'N/A';
             
             const cpuProgress = document.getElementById('cpu-progress');
             cpuProgress.style.width = `${cpuUsage}%`;
             cpuProgress.className = cpuUsage > 80 ? 'progress-fill danger' : cpuUsage > 60 ? 'progress-fill warning' : 'progress-fill';
 
-            // Dynamic Memory
             const memPercent = data.memory_info.used_percentage.toFixed(1);
             document.getElementById('memory-percent').textContent = `${memPercent}%`;
             document.getElementById('memory-used').textContent = data.memory_info.used_human;
@@ -507,11 +463,9 @@
             memProgress.style.width = `${memPercent}%`;
             memProgress.className = memPercent > 80 ? 'progress-fill danger' : memPercent > 60 ? 'progress-fill warning' : 'progress-fill';
 
-            // Dynamic Application
             document.getElementById('app-memory').textContent = data.application.app_memory_human;
             document.getElementById('app-cpu').textContent = `${data.application.app_cpu_usage_percent.toFixed(1)}%`;
 
-            // Database (Status)
             const dbStatus = document.getElementById('db-status');
             if (data.database.status === 'Connected') {
                 dbStatus.className = 'status-badge status-up';
@@ -521,11 +475,9 @@
                 dbStatus.textContent = 'DOWN';
             }
 
-            // Dynamic Network
             document.getElementById('net-rx').textContent = data.network_info.total_rx_human;
             document.getElementById('net-tx').textContent = data.network_info.total_tx_human;
 
-            // Dynamic Disks
             const diskList = document.getElementById('disk-list');
             diskList.innerHTML = data.disks_info.map(disk => `
                 <div class="disk-item">
@@ -533,37 +485,27 @@
                         <span class="disk-name">${disk.name}</span>
                         <span>${disk.used_percentage.toFixed(1)}% used</span>
                     </div>
-                    <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.5rem;">
-                        ${disk.mount_point} (${disk.file_system})
-                    </div>
-                    <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">
-                        ${disk.available_space_human} free of ${disk.total_space_human}
-                    </div>
+                    <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.5rem;">${disk.mount_point} (${disk.file_system})</div>
+                    <div style="font-size: 0.875rem; margin-bottom: 0.5rem;">${disk.available_space_human} free of ${disk.total_space_human}</div>
                     <div class="progress-bar">
-                        <div class="progress-fill ${disk.used_percentage > 80 ? 'danger' : disk.used_percentage > 60 ? 'warning' : ''}" 
-                             style="width: ${disk.used_percentage}%"></div>
+                        <div class="progress-fill ${disk.used_percentage > 80 ? 'danger' : disk.used_percentage > 60 ? 'warning' : ''}" style="width: ${disk.used_percentage}%"></div>
                     </div>
                 </div>
             `).join('');
 
-            // --- STATIC DATA ---
             if (isFirstLoad) {
                 document.getElementById('version').textContent = '0.0.3'; 
                 document.getElementById('cpu-brand').textContent = data.cpu_info.brand;
                 document.getElementById('cpu-cores').textContent = data.os_info.num_cpus;
-                
                 document.getElementById('memory-total').textContent = data.memory_info.total_human;
-                
                 document.getElementById('db-name').textContent = data.database.database_name;
                 document.getElementById('db-size').textContent = data.database.size_human;
                 document.getElementById('db-version').textContent = data.database.engine_version.split(' ').slice(0, 2).join(' ');
                 document.getElementById('db-directory').textContent = data.database.data_directory || 'N/A';
-                
                 document.getElementById('os-platform').textContent = data.os_info.platform;
                 document.getElementById('os-distro').textContent = data.os_info.distro;
                 document.getElementById('os-hostname').textContent = data.os_info.hostname;
                 document.getElementById('os-kernel').textContent = data.os_info.kernel_version;
-                
                 isFirstLoad = false;
             }
         }
@@ -572,38 +514,23 @@
             const days = Math.floor(seconds / 86400);
             const hours = Math.floor((seconds % 86400) / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-
+            const secs = Math.floor(seconds % 60);
             if (days > 0) return `${days}d ${hours}h ${minutes}m`;
             if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
             if (minutes > 0) return `${minutes}m ${secs}s`;
             return `${secs}s`;
         }
 
-        function startCountdown() {
-            if (!autoRefreshEnabled) return; // Prevent start if paused
-
-            countdownTimer = 0.25; 
-            const countdownEl = document.getElementById('countdown');
-            if(countdownEl) countdownEl.textContent = countdownTimer;
-            
-            if (countdownInterval) clearInterval(countdownInterval);
-            
-            countdownInterval = setInterval(() => {
-                countdownTimer -= 0.25; 
-                const el = document.getElementById('countdown');
-                if(el) el.textContent = countdownTimer;
-                
-                if (countdownTimer <= 0) {
-                    fetchSystemInfo();
-                    startCountdown(); 
-                }
-            }, 250); 
-        }
-
-        // Initial load
-        fetchSystemInfo();
-        startCountdown();
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inicializar el reloj si el script cargó correctamente desde /static
+            if (typeof ClockModule !== 'undefined') {
+                ClockModule.init();
+            } else {
+                console.error("El módulo clock.js no se cargó. Verifica que Actix esté sirviendo archivos estáticos.");
+            }
+            initDashboard();
+        });
     </script>
 </body>
 </html>
