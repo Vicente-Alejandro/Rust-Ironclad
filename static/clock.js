@@ -1,14 +1,14 @@
-// clock.js
+// clock.js - Watch display module
 const ClockModule = (function() {
     let currentMode = 'quartz'; 
     let requestRef;
     
-    // 1. CATÁLOGO DINÁMICO DE RELOJES
+    // 1. DYNAMIC WATCH CATALOG
     const WATCH_CATALOG = {
         quartz: {
             desc: 'Quartz Module 1Hz<br>Cushion Case',
             isDigital: false,
-            bph: null, // El cuarzo salta a 1Hz
+            bph: null, // Quartz ticks at 1Hz
             template: `
                 <div class="inner-bezel"></div>
                 <div id="hour-markers"></div>
@@ -28,7 +28,7 @@ const ClockModule = (function() {
         automatic: {
             desc: 'Mechanical Module 18800 BPH<br>Open Heart Case',
             isDigital: false,
-            bph: 18800, // El automático típico late a 18800 BPH (5.22Hz) saltos por segundo (aprox 5.22 saltos por segundo)
+            bph: 18800, // Typical automatic beats at 18800 BPH (5.22Hz) beats per second (approx 5.22 ticks per second)
             template: `
                 <div class="inner-bezel"></div>
                 <div id="hour-markers"></div>
@@ -120,7 +120,7 @@ const ClockModule = (function() {
             let secondAngle = 0;
             
             if (watch.bph) {
-                // FÍSICA AUTOMÁTICA DINÁMICA
+                // DYNAMIC AUTOMATIC PHYSICS
                 const beatsPerSecond = watch.bph / 3600;
                 const msPerBeat = 1000 / beatsPerSecond;
                 const degreesPerBeat = 6 / beatsPerSecond;
@@ -129,7 +129,7 @@ const ClockModule = (function() {
                 const beats = Math.floor(totalMs / msPerBeat);
                 secondAngle = (beats * degreesPerBeat) % 360;
             } else {
-                // FÍSICA CUARZO
+                // QUARTZ PHYSICS
                 secondAngle = seconds * 6;
             }
             
