@@ -96,18 +96,24 @@
 <body>
     <div class="left-panel">
         <div class="clock-panel">
+            <button id="maximize-watch-btn" class="maximize-btn" title="Fullscreen Watch">⛶</button>
             <div class="clock-title">System Time</div>
             
             <div class="watch-selector">
                 <select class="watch-select" id="watch-style-select">
                     <option value="quartz">Ironclad Quartz</option>
                     <option value="automatic">Ironclad Automatic IH(18.8k)</option>
+                    <option value="accutron">Ironclad Spaceview (Tuning Fork)</option>
                     <option value="digital">Ironclad W800 (Digital)</option>
+                    <option value="vostok">Ironclad Amphibia (19.8k)</option>
+                    <option value="databank">Ironclad DBC-32 (Calculator)
+                    <option value="sbsa255">Ironclad 5 Sports (SBSA255 JDM)
+                    <option value="seaclad">Seaclad 300M (25.2k)
                 </select>
                 <div id="watch-description" class="watch-desc">Quartz Module 1Hz<br>Cushion Case</div>
             </div>
 
-            <div class="watch-container">
+            <div class="watch-container" id="original-watch-container">
                 <div id="watch-case" class="watch-case quartz">
                     <div class="watch-crown" id="watch-crown"></div>
                     <div class="watch-face" id="watch-face"></div>
@@ -116,6 +122,12 @@
             
             <div class="digital-time" id="digital-time">00:00:00</div>
         </div>
+    </div>
+
+    <div class="watch-modal-overlay" id="watch-modal">
+        <button class="close-modal-btn" id="close-watch-modal">×</button>
+        <div class="watch-modal-content" id="maximized-watch-container">
+            </div>
     </div>
 
     <div class="right-panel">

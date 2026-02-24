@@ -2,147 +2,355 @@
 const ClockModule = (function() {
     let currentMode = 'quartz'; 
     let requestRef;
+    let isMaximized = false;
     
-    // 1. DYNAMIC WATCH CATALOG
+    // --- CALCULATOR STATE ---
+    let calcState = { display: '0', operator: null, firstOperand: null, waitingForNewValue: false, isCalcMode: false };
+    function loadCalcState() { const saved = localStorage.getItem('ironclad_calc_state'); if (saved) { try { calcState = JSON.parse(saved); } catch(e) {} } }
+    function saveCalcState() { localStorage.setItem('ironclad_calc_state', JSON.stringify(calcState)); }
+    
+    // --- SOLAR LIGHT ENGINE (SUN PATH SIMULATOR) ---
+    let userLocation = { lat: -29.9045, lon: -71.2489 }; // Default: La Serena
+    let lastSunUpdate = 0; 
+    
+    function requestLocation() {
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation.lat = position.coords.latitude;
+                    userLocation.lon = position.coords.longitude;
+                    console.log("Ironclad Sun Engine: Using real coordinates.", userLocation);
+                    // Force immediate update when getting location
+                    updateSunlightReflection(new Date(), true); 
+                },
+                (error) => { console.log("Ironclad Sun Engine: Using default coordinates."); }
+            );
+        }
+    }
+
+    function calculateSunPosition(date, lat, lon) {
+        const PI = Math.PI;
+        const rad = PI / 180;
+        const start = new Date(date.getFullYear(), 0, 0);
+        const diff = date - start;
+        const oneDay = 1000 * 60 * 60 * 24;
+        const dayOfYear = Math.floor(diff / oneDay);
+        const declination = -23.45 * Math.cos(rad * (360 / 365) * (dayOfYear + 10));
+        const tzOffset = date.getTimezoneOffset() / 60; 
+        const localTime = date.getHours() + (date.getMinutes() / 60) + (date.getSeconds() / 3600);
+        const solarTime = localTime + (lon / 15) + tzOffset;
+        const hourAngle = 15 * (solarTime - 12);
+        
+        const sinElevation = Math.sin(lat * rad) * Math.sin(declination * rad) + Math.cos(lat * rad) * Math.cos(declination * rad) * Math.cos(hourAngle * rad);
+        const elevation = Math.asin(sinElevation) / rad;
+        
+        let azimut = Math.acos( (Math.sin(declination * rad) - Math.sin(lat * rad) * Math.sin(elevation * rad)) / (Math.cos(lat * rad) * Math.cos(elevation * rad)) ) / rad;
+        if (hourAngle > 0) { azimut = 360 - azimut; }
+        
+        return { elevation, azimut };
+    }
+
+    function updateSunlightReflection(now, force = false) {
+        // Recalculate every 5 seconds to save resources, unless forced
+        if (!force && now.getTime() - lastSunUpdate < 5000) return; 
+        lastSunUpdate = now.getTime();
+
+        const sun = calculateSunPosition(now, userLocation.lat, userLocation.lon);
+        
+        let intensity1 = 0;
+        let intensity2 = 0;
+
+        if (sun.elevation > 0) {
+            // The sun is above the horizon. We maximize at 0.4 if it exceeds 20 degrees elevation.
+            const normalizationFactor = Math.min(sun.elevation / 20, 1);
+            intensity1 = 0.4 * normalizationFactor;
+            intensity2 = 0.1 * normalizationFactor;
+        } 
+
+        let lightAngleCSS = sun.azimut - 180;
+        
+        const radAzimut = (sun.azimut - 90) * (Math.PI / 180);
+        const dist = 50 - Math.min(sun.elevation, 50); 
+        const xPercent = 50 + (Math.cos(radAzimut) * dist);
+        const yPercent = 50 + (Math.sin(radAzimut) * dist);
+
+        document.documentElement.style.setProperty('--light-angle', `${lightAngleCSS}deg`);
+        document.documentElement.style.setProperty('--light-intensity-1', intensity1);
+        document.documentElement.style.setProperty('--light-intensity-2', intensity2);
+        document.documentElement.style.setProperty('--light-x', `${xPercent}%`);
+        document.documentElement.style.setProperty('--light-y', `${yPercent}%`);
+    }
+
+    // --- DYNAMIC CATALOG ---
     const WATCH_CATALOG = {
         quartz: {
             desc: 'Quartz Module 1Hz<br>Cushion Case',
-            isDigital: false,
-            bph: null, // Quartz ticks at 1Hz
-            template: `
-                <div class="inner-bezel"></div>
-                <div id="hour-markers"></div>
-                <div class="watch-brand">Ironclad</div>
-                <div class="watch-model">QUARTZ</div>
-                <div class="watch-specs">WR 100M<br>FULL IRON</div>
-                <div class="date-window"><span class="date-number" id="date-display">--</span></div>
-                <div class="hands-container">
-                    <div class="hand-hour" id="hand-hour"></div>
-                    <div class="hand-minute" id="hand-minute"></div>
-                    <div class="hand-second" id="hand-second"></div>
-                    <div class="center-pin"></div>
-                </div>
-                <div class="glass-reflection"></div>
-            `
+            isDigital: false, bph: null, hideMarkers: [3],
+            template: `<div class="watch-crown"></div><div class="watch-face"><div class="inner-bezel"></div><div id="hour-markers"></div><div class="watch-brand">Ironclad</div><div class="watch-model">QUARTZ</div><div class="watch-specs">WR 100M<br>FULL IRON</div><div class="date-window"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour" id="hand-hour"></div><div class="hand-minute" id="hand-minute"></div><div class="hand-second" id="hand-second"></div><div class="center-pin"></div></div><div class="glass-reflection"></div></div>`
         },
         automatic: {
             desc: 'Mechanical Module 18800 BPH<br>Open Heart Case',
-            isDigital: false,
-            bph: 18800, // Typical automatic beats at 18800 BPH (5.22Hz) beats per second (approx 5.22 ticks per second)
-            template: `
-                <div class="inner-bezel"></div>
-                <div id="hour-markers"></div>
-                <div class="watch-brand">Ironclad</div>
-                <div class="watch-model">AUTOMATIC</div>
-                <div class="watch-specs">24 JEWELS<br>18800 BPH</div>
-                <div class="open-heart"><div class="gear"></div></div>
-                <div class="date-window"><span class="date-number" id="date-display">--</span></div>
-                <div class="hands-container">
-                    <div class="hand-hour" id="hand-hour"></div>
-                    <div class="hand-minute" id="hand-minute"></div>
-                    <div class="hand-second" id="hand-second"></div>
-                    <div class="center-pin"></div>
-                </div>
-                <div class="glass-reflection"></div>
-            `
+            isDigital: false, bph: 18800, hideMarkers: [3, 6],
+            template: `<div class="watch-crown"></div><div class="watch-face"><div class="inner-bezel"></div><div id="hour-markers"></div><div class="watch-brand">Ironclad</div><div class="watch-model">AUTOMATIC</div><div class="watch-specs">24 JEWELS<br>SAPPHIRE<br>jap mov</div><div class="gear"></div></div><div class="date-window"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour" id="hand-hour"></div><div class="hand-minute" id="hand-minute"></div><div class="hand-second" id="hand-second"></div><div class="center-pin"></div></div><div class="glass-reflection"></div></div>`
+        },
+        vostok: {
+            desc: 'Russian Diver 19800 BPH<br>Domed Acrylic Crystal',
+            isDigital: false, bph: 19800, hideMarkers: [3],
+            template: `<div class="watch-crown vostok-crown"></div><div class="watch-face vostok-face"><div id="hour-markers"></div><div class="watch-brand vostok-brand">IRONCLAD</div><div class="watch-model vostok-model">AMPHIBIA</div><div class="watch-specs vostok-specs">200M<br>31 JEWELS</div><div class="date-window vostok-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour vostok-hour" id="hand-hour"></div><div class="hand-minute vostok-minute" id="hand-minute"></div><div class="hand-second vostok-second" id="hand-second"></div><div class="center-pin vostok-pin"></div></div></div><div class="glass-reflection domed-acrylic"></div>`
+        },
+        skx007: {
+            desc: 'Classic Diver 21600 BPH<br>Black Dial & 4 o\'clock Crown',
+            isDigital: false, bph: 21600, hideMarkers: [3],
+            template: `<div class="watch-crown skx-crown"></div><div class="skx-bezel"></div><div class="watch-face skx-face"><div id="hour-markers"></div><div class="watch-brand skx-brand">IRONCLAD</div><div class="watch-model skx-model">AUTOMATIC</div><div class="watch-specs skx-specs">DIVER'S 200m</div><div class="date-window skx-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour skx-hour" id="hand-hour"></div><div class="hand-minute skx-minute" id="hand-minute"></div><div class="hand-second skx-second" id="hand-second"></div><div class="center-pin skx-pin"></div></div><div class="glass-reflection skx-glass"></div></div>`
+        },
+        sbsa255: {
+            desc: 'Seiko 5 Sports JDM 21600 BPH<br>37.4mm Field/Diver Case',
+            isDigital: false, bph: 21600, hideMarkers: [3],
+            template: `<div class="watch-crown sbsa-crown"></div><div class="sbsa-bezel"></div><div class="watch-face sbsa-face"><div id="hour-markers"></div><div class="watch-brand sbsa-brand">IRONSPORT <span class="sbsa-5">5</span></div><div class="watch-model sbsa-model">FULL IRON<br>AUTOMATIC</div><div class="watch-specs sbsa-specs">MADE IN JAPAN</div><div class="date-window sbsa-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour sbsa-hour" id="hand-hour"></div><div class="hand-minute sbsa-minute" id="hand-minute"></div><div class="hand-second sbsa-second" id="hand-second"></div><div class="center-pin sbsa-pin"></div></div></div><div class="glass-reflection"></div>`
+        },
+        seaclad: {
+            desc: 'Co-Axial Master 25200 BPH<br>Wave Dial & Helium Valve',
+            isDigital: false, bph: 25200, hideMarkers: [6], 
+            template: `<div class="watch-crown seaclad-crown"></div></div><div class="seaclad-bezel"></div><div class="watch-face seaclad-face"><div class="seaclad-waves"></div><div id="hour-markers"></div><div class="watch-brand seaclad-brand">IRONCLAD</div><div class="watch-model seaclad-model">SEACLAD<br>PROFESSIONAL</div><div class="watch-specs seaclad-specs">CO-AXIAL MASTER<br>300m / 1000ft</div><div class="date-window seaclad-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour seaclad-hour" id="hand-hour"></div><div class="hand-minute seaclad-minute" id="hand-minute"></div><div class="hand-second seaclad-second" id="hand-second"></div><div class="center-pin seaclad-pin"></div></div></div><div class="glass-reflection"></div>`
+        },
+        accutron: {
+            desc: 'Tuning Fork Module 360Hz<br>Spaceview Circuitry',
+            isDigital: false, bph: 'smooth', hideMarkers: [],
+            template: `<div class="watch-face accutron-face"><div class="accutron-pcb"><div class="pcb-trace trace-1"></div><div class="pcb-trace trace-2"></div><div class="accutron-coil coil-left"></div><div class="accutron-coil coil-right"></div><div class="accutron-component comp-1"></div><div class="accutron-component comp-2"></div><div class="tuning-fork"><div class="tf-tine tine-left"></div><div class="tf-tine tine-right"></div></div></div><div class="chapter-ring"><div class="watch-brand accutron-brand">IRONCLAD</div><div class="watch-model accutron-model">SPACEVIEW</div></div><div id="hour-markers"></div><div class="hands-container"><div class="hand-hour accutron-hour" id="hand-hour"></div><div class="hand-minute accutron-minute" id="hand-minute"></div><div class="hand-second accutron-second" id="hand-second"></div><div class="center-pin accutron-pin"></div></div><div class="glass-reflection accutron-glass"></div></div>`
         },
         digital: {
             desc: 'Illuminator Module<br>Resin Square Case',
-            isDigital: true,
-            template: `
-                <div class="w800-bezel">
-                    <div class="w800-brand">IRONCLAD</div>
-                    <div class="w800-illuminator">ILLUMINATOR</div>
-                    <div class="w800-wr">WATER 100M RESIST</div>
-                    <div class="w800-lcd">
-                        <div class="lcd-header">
-                            <span id="lcd-year">2026</span>
-                            <span id="lcd-date">10-25</span>
-                            <span id="lcd-day">MON</span>
-                        </div>
-                        <div class="lcd-time-row">
-                            <span id="lcd-hour">10</span><span class="lcd-colon">:</span><span id="lcd-minute">58</span>
-                            <span id="lcd-second">34</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="glass-reflection"></div>
-            `
+            isDigital: true, hideMarkers: [],
+            template: `<div class="w800-bezel"><div class="w800-brand">IRONCLAD</div><div class="w800-illuminator">ILLUMINATOR</div><div class="w800-wr">WATER 100M RESIST</div><div class="w800-lcd"><div class="lcd-header"><span id="lcd-year">2026</span><span id="lcd-date">10-25</span><span id="lcd-day">MON</span></div><div class="lcd-time-row"><span id="lcd-hour">10</span><span class="lcd-colon">:</span><span id="lcd-minute">58</span><span id="lcd-second">34</span></div></div><div class="glass-reflection digital-glass"></div></div>`
+        },
+        databank: {
+            desc: 'Calculator Watch Module<br>Resin Case with Keypad',
+            isDigital: true, hideMarkers: [],
+            template: `<div class="dbc-bezel"><div class="dbc-screen-area"><div class="dbc-brand">IRONCLAD <span class="dbc-sub">DATABANK</span></div><div class="dbc-lcd" id="dbc-lcd"><div id="dbc-time-mode"><div class="dbc-header"><span id="dbc-year">2026</span><span id="dbc-date">10-25</span><span id="dbc-day">MON</span></div><div class="dbc-time-row"><span id="dbc-hour">10</span><span class="dbc-colon">:</span><span id="dbc-minute">58</span><span id="dbc-second">34</span></div></div><div id="dbc-calc-mode" style="display: none;"><div class="dbc-calc-indicator">CALC</div><div class="dbc-calc-display" id="dbc-calc-display">0</div></div></div></div><div class="dbc-keypad"><button class="dbc-key" data-action="mode">MODE</button><button class="dbc-key" data-num="7">7</button><button class="dbc-key" data-num="8">8</button><button class="dbc-key" data-num="9">9</button><button class="dbc-key dbc-op" data-op="/">÷</button><button class="dbc-key" data-action="clear">C</button><button class="dbc-key" data-num="4">4</button><button class="dbc-key" data-num="5">5</button><button class="dbc-key" data-num="6">6</button><button class="dbc-key dbc-op" data-op="*">×</button><button class="dbc-key" data-num="0">0</button><button class="dbc-key" data-num="1">1</button><button class="dbc-key" data-num="2">2</button><button class="dbc-key" data-num="3">3</button><button class="dbc-key dbc-op" data-op="-">-</button><button class="dbc-key" data-num=".">.</button><button class="dbc-key dbc-eq" data-action="calculate">=</button><button class="dbc-key dbc-op" data-op="+">+</button></div><div class="glass-reflection dbc-glass"></div></div>`,
+            onMount: function() {
+                loadCalcState();
+                const timeModeEl = document.getElementById('dbc-time-mode');
+                const calcModeEl = document.getElementById('dbc-calc-mode');
+                const calcDisplayEl = document.getElementById('dbc-calc-display');
+                
+                timeModeEl.style.display = calcState.isCalcMode ? 'none' : 'block';
+                calcModeEl.style.display = calcState.isCalcMode ? 'block' : 'none';
+                calcDisplayEl.textContent = calcState.display;
+                
+                const calculate = (n1, operator, n2) => {
+                    const firstNum = parseFloat(n1);
+                    const secondNum = parseFloat(n2);
+                    if (operator === '+') return firstNum + secondNum;
+                    if (operator === '-') return firstNum - secondNum;
+                    if (operator === '*') return firstNum * secondNum;
+                    if (operator === '/') return secondNum === 0 ? 'ERR' : firstNum / secondNum;
+                    return secondNum;
+                };
+
+                document.querySelectorAll('.dbc-key').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        e.stopPropagation(); 
+                        const val = e.target.dataset.num;
+                        const action = e.target.dataset.action;
+                        const op = e.target.dataset.op;
+
+                        if (action === 'mode') {
+                            calcState.isCalcMode = !calcState.isCalcMode;
+                            timeModeEl.style.display = calcState.isCalcMode ? 'none' : 'block';
+                            calcModeEl.style.display = calcState.isCalcMode ? 'block' : 'none';
+                            saveCalcState();
+                            return;
+                        }
+
+                        if (!calcState.isCalcMode) return;
+
+                        if (val !== undefined) {
+                            if (calcState.waitingForNewValue) {
+                                calcState.display = val;
+                                calcState.waitingForNewValue = false;
+                            } else {
+                                calcState.display = calcState.display === '0' ? val : calcState.display + val;
+                            }
+                        }
+
+                        if (op !== undefined) {
+                            const inputValue = parseFloat(calcState.display);
+                            if (calcState.firstOperand === null && !isNaN(inputValue)) {
+                                calcState.firstOperand = inputValue;
+                            } else if (calcState.operator) {
+                                const result = calculate(calcState.firstOperand, calcState.operator, inputValue);
+                                calcState.display = String(result).substring(0, 8); 
+                                calcState.firstOperand = result;
+                            }
+                            calcState.operator = op;
+                            calcState.waitingForNewValue = true;
+                        }
+
+                        if (action === 'calculate') {
+                            if (calcState.operator && !calcState.waitingForNewValue) {
+                                const result = calculate(calcState.firstOperand, calcState.operator, parseFloat(calcState.display));
+                                calcState.display = String(result).substring(0, 8);
+                                calcState.firstOperand = null;
+                                calcState.operator = null;
+                                calcState.waitingForNewValue = true;
+                            }
+                        }
+
+                        if (action === 'clear') {
+                            calcState.display = '0';
+                            calcState.firstOperand = null;
+                            calcState.operator = null;
+                            calcState.waitingForNewValue = false;
+                        }
+
+                        calcDisplayEl.textContent = calcState.display;
+                        saveCalcState();
+                    });
+                });
+            }
         }
     };
 
     function init() {
         const select = document.getElementById('watch-style-select');
-        select.addEventListener('change', (e) => renderWatch(e.target.value));
+        const savedMode = localStorage.getItem('ironclad_watch_mode');
+        
+        if (savedMode && WATCH_CATALOG[savedMode]) {
+            select.value = savedMode;
+        }
+
+        // Request location to simulate real sun
+        requestLocation();
+
+        select.addEventListener('change', (e) => {
+            const newMode = e.target.value;
+            localStorage.setItem('ironclad_watch_mode', newMode);
+            renderWatch(newMode);
+        });
+
+        setupMaximizeFeature();
         renderWatch(select.value);
         requestRef = requestAnimationFrame(updateLoop);
     }
 
+    function setupMaximizeFeature() {
+        const maximizeBtn = document.getElementById('maximize-watch-btn');
+        const closeModalBtn = document.getElementById('close-watch-modal');
+        const modalOverlay = document.getElementById('watch-modal');
+        const originalContainer = document.getElementById('original-watch-container');
+        const maximizedContainer = document.getElementById('maximized-watch-container');
+        const watchCase = document.getElementById('watch-case');
+
+        function openModal() {
+            isMaximized = true;
+            maximizedContainer.appendChild(watchCase);
+            modalOverlay.classList.add('active');
+        }
+
+        function closeModal() {
+            isMaximized = false;
+            modalOverlay.classList.remove('active');
+            setTimeout(() => { originalContainer.appendChild(watchCase); }, 300);
+        }
+
+        maximizeBtn.addEventListener('click', openModal);
+        closeModalBtn.addEventListener('click', closeModal);
+        modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isMaximized) closeModal(); });
+    }
+
     function renderWatch(mode) {
-        currentMode = mode;
         const watch = WATCH_CATALOG[mode];
-        
+        if (!watch) return; 
+
+        currentMode = mode;
         document.getElementById('watch-case').className = `watch-case ${mode}`;
         document.getElementById('watch-description').innerHTML = watch.desc;
-        document.getElementById('watch-face').innerHTML = watch.template;
+        document.getElementById('watch-case').innerHTML = watch.template;
 
         if (!watch.isDigital) {
             const hourMarkers = document.getElementById('hour-markers');
-            for (let i = 0; i < 12; i++) {
-                const marker = document.createElement('div');
-                marker.className = i % 3 === 0 ? 'hour-marker major' : 'hour-marker';
-                marker.style.transform = `translateX(-50%) rotate(${i * 30}deg)`;
-                hourMarkers.appendChild(marker);
+            if (hourMarkers) {
+                const hidden = watch.hideMarkers || [];
+                for (let i = 0; i < 12; i++) {
+                    const marker = document.createElement('div');
+                    marker.className = i % 3 === 0 ? 'hour-marker major' : 'hour-marker';
+                    marker.style.transform = `translateX(-50%) rotate(${i * 30}deg)`;
+                    if (hidden.includes(i)) marker.style.display = 'none';
+                    hourMarkers.appendChild(marker);
+                }
             }
         }
+        if (typeof watch.onMount === 'function') watch.onMount();
+        
+        // Force a light update when changing watches
+        updateSunlightReflection(new Date(), true);
     }
     
     function updateLoop() {
         const now = new Date();
         const watch = WATCH_CATALOG[currentMode];
+        if (!watch) { requestRef = requestAnimationFrame(updateLoop); return; }
+
+        // --- UPDATE SOLAR ENGINE ---
+        updateSunlightReflection(now);
 
         if (watch.isDigital) {
             const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-            document.getElementById('lcd-year').textContent = now.getFullYear();
-            document.getElementById('lcd-date').textContent = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            document.getElementById('lcd-day').textContent = days[now.getDay()];
-            document.getElementById('lcd-hour').textContent = String(now.getHours()).padStart(2, '0');
-            document.getElementById('lcd-minute').textContent = String(now.getMinutes()).padStart(2, '0');
-            document.getElementById('lcd-second').textContent = String(now.getSeconds()).padStart(2, '0');
+            const prefix = currentMode === 'databank' ? 'dbc' : 'lcd';
+            
+            const yearEl = document.getElementById(`${prefix}-year`);
+            if (yearEl) yearEl.textContent = now.getFullYear();
+            
+            const dateEl = document.getElementById(`${prefix}-date`);
+            if (dateEl) dateEl.textContent = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            
+            const dayEl = document.getElementById(`${prefix}-day`);
+            if (dayEl) dayEl.textContent = days[now.getDay()];
+            
+            const hourEl = document.getElementById(`${prefix}-hour`);
+            if (hourEl) hourEl.textContent = String(now.getHours()).padStart(2, '0');
+            
+            const minEl = document.getElementById(`${prefix}-minute`);
+            if (minEl) minEl.textContent = String(now.getMinutes()).padStart(2, '0');
+            
+            const secEl = document.getElementById(`${prefix}-second`);
+            if (secEl) secEl.textContent = String(now.getSeconds()).padStart(2, '0');
         } else {
             const hours = now.getHours();
             const minutes = now.getMinutes();
             const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
             
             const hourAngle = (hours % 12) * 30 + minutes * 0.5;
             const minuteAngle = minutes * 6 + seconds * 0.1;
             
             let secondAngle = 0;
-            
-            if (watch.bph) {
-                // DYNAMIC AUTOMATIC PHYSICS
+            if (watch.bph === 'smooth') {
+                secondAngle = (seconds * 6) + (milliseconds * 0.006);
+            } else if (watch.bph) {
                 const beatsPerSecond = watch.bph / 3600;
                 const msPerBeat = 1000 / beatsPerSecond;
                 const degreesPerBeat = 6 / beatsPerSecond;
-                
                 const totalMs = now.getTime();
                 const beats = Math.floor(totalMs / msPerBeat);
                 secondAngle = (beats * degreesPerBeat) % 360;
             } else {
-                // QUARTZ PHYSICS
                 secondAngle = seconds * 6;
             }
             
-            document.getElementById('hand-hour').style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
-            document.getElementById('hand-minute').style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
-            document.getElementById('hand-second').style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
-            document.getElementById('date-display').textContent = now.getDate();
+            const handHour = document.getElementById('hand-hour');
+            if(handHour) handHour.style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
+            const handMin = document.getElementById('hand-minute');
+            if(handMin) handMin.style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
+            const handSec = document.getElementById('hand-second');
+            if(handSec) handSec.style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
+            
+            const dateDisplay = document.getElementById('date-display');
+            if(dateDisplay) dateDisplay.textContent = now.getDate();
         }
         
-        document.getElementById('digital-time').textContent = now.toLocaleTimeString('en-US', { 
-            hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
-        
+        document.getElementById('digital-time').textContent = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         requestRef = requestAnimationFrame(updateLoop);
     }
     

@@ -4,3 +4,4 @@
 storage/framework/maintenance.json
 templates/render/down/*
 !templates/render/down/default.html
+.vscode/settings.json
