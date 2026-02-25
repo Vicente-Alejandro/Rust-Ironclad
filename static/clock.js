@@ -8,6 +8,14 @@ const ClockModule = (function() {
     let calcState = { display: '0', operator: null, firstOperand: null, waitingForNewValue: false, isCalcMode: false };
     function loadCalcState() { const saved = localStorage.getItem('ironclad_calc_state'); if (saved) { try { calcState = JSON.parse(saved); } catch(e) {} } }
     function saveCalcState() { localStorage.setItem('ironclad_calc_state', JSON.stringify(calcState)); }
+
+    // --- ESTADO DEL CASIOTRON TRN-50 ---
+    let casiotronState = {
+        mode: 0, // 0: TIME, 1: WT, 2: STW, 3: TMR, 4: ALM
+        stw: { running: false, start: 0, elapsed: 0 },
+        tmr: { running: false, end: 0, remaining: 10 * 60 * 1000, default: 10 * 60 * 1000 }, // 10 mins por defecto
+        light: false
+    };
     
     // --- SOLAR LIGHT ENGINE (SUN PATH SIMULATOR) ---
     let userLocation = { lat: -29.9045, lon: -71.2489 }; // Default: La Serena
@@ -88,25 +96,223 @@ const ClockModule = (function() {
             isDigital: false, bph: null, hideMarkers: [3],
             template: `<div class="watch-crown"></div><div class="watch-face"><div class="inner-bezel"></div><div id="hour-markers"></div><div class="watch-brand">Ironclad</div><div class="watch-model">QUARTZ</div><div class="watch-specs">WR 100M<br>FULL IRON</div><div class="date-window"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour" id="hand-hour"></div><div class="hand-minute" id="hand-minute"></div><div class="hand-second" id="hand-second"></div><div class="center-pin"></div></div><div class="glass-reflection"></div></div>`
         },
+        casiotron: {
+            desc: 'TRN-50 50th Anniversary<br>Tough Solar & Multi-Mode',
+            isDigital: true,
+            hideMarkers: [],
+            template: `
+                <div class="casio-btn btn-a" data-btn="A"></div> <div class="casio-btn btn-b" data-btn="B"></div> <div class="casio-btn btn-c" data-btn="C"></div> <div class="casio-btn btn-d" data-btn="D"></div> <div class="casiotron-bezel"></div>
+                <div class="casiotron-dial-container">
+                    <div class="casiotron-dial-pattern"></div>
+                    <div class="casiotron-gold-ring">
+                        <div class="casiotron-logo">CASIOTRON</div>
+                        <div class="casiotron-sublogo">TRN-50</div>
+                        
+                        <div class="casiotron-lcd" id="casiotron-lcd">
+                            <div class="casio-header" id="casio-header">MO 25</div>
+                            <div class="casio-main-row">
+                                <span class="casio-main" id="casio-main">10:58</span>
+                                <span class="casio-sec" id="casio-sec">34</span>
+                            </div>
+                            <div class="casio-indicators">
+                                <span id="casio-ind-1">RCVD</span>
+                                <span id="casio-ind-2">TOUGH SOLAR</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-reflection casiotron-glass"></div>
+            `,
+            onMount: function() {
+                // Mapeo lógico de botones físicos
+                document.querySelectorAll('.casio-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = e.target.dataset.btn;
+                        
+                        if (id === 'C') {
+                            // BOTÓN C (Bottom Left): Cambiar Modo
+                            casiotronState.mode = (casiotronState.mode + 1) % 5;
+                        } else if (id === 'D') {
+                            // BOTÓN D (Bottom Right): Start/Stop
+                            if (casiotronState.mode === 2) { // STW
+                                if (casiotronState.stw.running) {
+                                    casiotronState.stw.running = false;
+                                    casiotronState.stw.elapsed += Date.now() - casiotronState.stw.start;
+                                } else {
+                                    casiotronState.stw.running = true;
+                                    casiotronState.stw.start = Date.now();
+                                }
+                            } else if (casiotronState.mode === 3) { // TMR
+                                if (casiotronState.tmr.running) {
+                                    casiotronState.tmr.running = false;
+                                    casiotronState.tmr.remaining = casiotronState.tmr.end - Date.now();
+                                } else {
+                                    casiotronState.tmr.running = true;
+                                    casiotronState.tmr.end = Date.now() + casiotronState.tmr.remaining;
+                                }
+                            }
+                        } else if (id === 'A') {
+                            // BOTÓN A (Top Left): Reset
+                            if (casiotronState.mode === 2) {
+                                casiotronState.stw = { running: false, start: 0, elapsed: 0 };
+                            } else if (casiotronState.mode === 3) {
+                                casiotronState.tmr = { running: false, end: 0, remaining: casiotronState.tmr.default, default: casiotronState.tmr.default };
+                            }
+                        } else if (id === 'B') {
+                            // BOTÓN B (Top Right): Super Illuminator LED
+                            casiotronState.light = true;
+                            setTimeout(() => casiotronState.light = false, 2000); // Se apaga a los 2 seg
+                        }
+                    });
+                });
+            }
+        },
+        grandseiko: {
+            desc: 'Hi-Beat 36000 BPH<br>Zaratsu Polish & Dauphine Hands',
+            isDigital: false,
+            bph: 36000, // 10 saltos exactos por segundo (Hi-Beat)
+            hideMarkers: [3],
+            template: `
+                <div class="watch-crown gs-crown"></div>
+                <div class="gs-bezel"></div>
+                
+                <div class="watch-face gs-face">
+                    <div class="gs-texture"></div>
+                    
+                    <div id="hour-markers"></div>
+                    
+                    <div class="watch-brand gs-brand">GS<br><span class="gs-sub">grand seiko</span></div>
+                    <div class="watch-specs gs-specs">HI-BEAT 36000 <div class="gs-specs-red">GMT</div></div>
+                    
+                    <div class="date-window gs-date"><span class="date-number" id="date-display">--</span></div>
+                    
+                    <div class="hands-container">
+                        <div class="hand-hour gs-hour" id="hand-hour"></div>
+                        <div class="hand-minute gs-minute" id="hand-minute"></div>
+                        <div class="hand-second gs-second" id="hand-second"></div>
+                        <div class="center-pin gs-pin"></div>
+                    </div>
+                </div>
+                <div class="glass-reflection"></div>
+            `
+        },
+        submariner: {
+            desc: 'Swiss GMT Chronometer 28800 BPH<br>Bicolor Ceramic Bezel',
+            isDigital: false,
+            bph: 28800,
+            hideMarkers: [3],
+            template: `
+                <div class="watch-crown submariner-crown"></div>
+                <div class="submariner-bezel">
+                    <div id="gmt-bezel-numbers" class="gmt-numbers"></div>
+                </div>
+                
+                <div class="watch-face submariner-face">
+                    <div id="hour-markers"></div>
+                    <div class="watch-brand submariner-brand">ROLEX</div>
+                    <div class="watch-model submariner-model">OYSTER PERPETUAL IRON</div>
+                    <div class="watch-specs submariner-specs"><div class="r">SUBMARINER</div>1000ft = 300<span style="font-style:italic">m</span><br>SUPERLATIVE CHRONOMETER<br>OFFICIALLY CERTIFIED</div>
+                    <div class="date-window submariner-date"><span class="date-number" id="date-display">--</span></div>
+                    
+                    <div class="hands-container">
+                        <div class="hand-hour submariner-hour" id="hand-hour"><div class="mercedes-circle"></div></div>
+                        <div class="hand-minute submariner-minute" id="hand-minute"></div>
+                        <div class="hand-second submariner-second" id="hand-second"></div>
+                        <div class="center-pin submariner-pin"></div>
+                    </div>
+                </div>
+                <div class="glass-reflection"></div>
+                <div class="submariner-cyclops"></div>
+            `,
+            // Ejecutamos código para inyectar los números matemáticamente al cargar el reloj
+            onMount: function () {
+                const gmtContainer = document.getElementById('gmt-bezel-numbers');
+                if (!gmtContainer) return;
+
+                // Nivel Experto: Array de tu bisel Dive/GMT personalizado
+                const gmtMarks = [
+                    '▼', '▮', '1', '▮', '2', '▮', '3', '',
+                    '4', '', '5', '', '6', '', '7', '',
+                    '8', '', '9', '', '10', '', '11', ''
+                ];
+
+                gmtContainer.innerHTML = '';
+
+                gmtMarks.forEach((mark, index) => {
+                    const numDiv = document.createElement('div');
+                    numDiv.className = 'gmt-num';
+                    numDiv.style.transform = `rotate(${index * 15}deg)`;
+
+                    const innerSpan = document.createElement('span');
+                    innerSpan.textContent = mark;
+
+                    if (mark === '▮') {
+                        innerSpan.className = 'gmt-dot';
+                    } else if (mark === '■') {
+                        innerSpan.className = 'gmt-dot-thick';
+                    }
+
+                    numDiv.appendChild(innerSpan);
+                    gmtContainer.appendChild(numDiv);
+                });
+
+                // --- LÓGICA DE BISEL ROTATORIO (DIVE BEZEL) ---
+                const bezelElement = document.querySelector('.submariner-bezel');
+                if (!bezelElement) return;
+
+                // Recuperar la rotación guardada (o 0 por defecto)
+                let currentRotation = parseFloat(localStorage.getItem('ironclad_submariner_bezel')) || 0;
+                bezelElement.style.transform = `rotate(${currentRotation}deg)`;
+
+                // Función para girar el bisel (Unidireccional: 120 clicks = 3 grados por click)
+                const rotateBezel = (degrees) => {
+                    currentRotation += degrees;
+                    // Mantenemos el número entre -360 y 0 para que no crezca infinitamente
+                    if (currentRotation <= -360) currentRotation = 0;
+
+                    bezelElement.style.transform = `rotate(${currentRotation}deg)`;
+                    localStorage.setItem('ironclad_submariner_bezel', currentRotation);
+                };
+
+                // Asignar evento de clic al bisel
+                bezelElement.addEventListener('mousedown', (e) => {
+                    e.stopPropagation(); // Evitar cerrar el modal maximizado
+
+                    // Obtener las dimensiones del bisel para saber de qué lado hicimos clic
+                    const rect = bezelElement.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+
+                    // Si hacemos clic, simulamos el giro manual. 
+                    // Unidireccional hacia la izquierda (-3 grados = 1 click de Rolex)
+                    // Si quisieras que gire rápido si dejas el mouse apretado, requeriría un setInterval, 
+                    // pero para mayor control, un clic = un salto de 3 a 15 grados es más realista en UI.
+
+                    rotateBezel(-15); // Rotamos 5 clics de golpe (15 grados) para que sea cómodo de usar
+                });
+
+                // Soporte táctil para móviles
+                bezelElement.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // Evitar scroll de pantalla
+                    e.stopPropagation();
+                    rotateBezel(-15);
+                }, { passive: false });
+            }
+        },
         automatic: {
             desc: 'Mechanical Module 18800 BPH<br>Open Heart Case',
             isDigital: false, bph: 18800, hideMarkers: [3, 6],
-            template: `<div class="watch-crown"></div><div class="watch-face"><div class="inner-bezel"></div><div id="hour-markers"></div><div class="watch-brand">Ironclad</div><div class="watch-model">AUTOMATIC</div><div class="watch-specs">24 JEWELS<br>SAPPHIRE<br>jap mov</div><div class="gear"></div></div><div class="date-window"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour" id="hand-hour"></div><div class="hand-minute" id="hand-minute"></div><div class="hand-second" id="hand-second"></div><div class="center-pin"></div></div><div class="glass-reflection"></div></div>`
+            template: `<div class="watch-crown"></div><div class="watch-face"><div class="inner-bezel"></div><div id="hour-markers"></div><div class="watch-brand">Ironclad</div><div class="watch-model">AUTOMATIC</div><div class="watch-specs">24 JEWELS<br>SAPPHIRE<br>jap mov</div></div></div><div class="date-window"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour" id="hand-hour"></div><div class="hand-minute" id="hand-minute"></div><div class="hand-second" id="hand-second"></div><div class="center-pin"></div></div><div class="glass-reflection"></div></div>`
         },
         vostok: {
             desc: 'Russian Diver 19800 BPH<br>Domed Acrylic Crystal',
             isDigital: false, bph: 19800, hideMarkers: [3],
             template: `<div class="watch-crown vostok-crown"></div><div class="watch-face vostok-face"><div id="hour-markers"></div><div class="watch-brand vostok-brand">IRONCLAD</div><div class="watch-model vostok-model">AMPHIBIA</div><div class="watch-specs vostok-specs">200M<br>31 JEWELS</div><div class="date-window vostok-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour vostok-hour" id="hand-hour"></div><div class="hand-minute vostok-minute" id="hand-minute"></div><div class="hand-second vostok-second" id="hand-second"></div><div class="center-pin vostok-pin"></div></div></div><div class="glass-reflection domed-acrylic"></div>`
         },
-        skx007: {
-            desc: 'Classic Diver 21600 BPH<br>Black Dial & 4 o\'clock Crown',
-            isDigital: false, bph: 21600, hideMarkers: [3],
-            template: `<div class="watch-crown skx-crown"></div><div class="skx-bezel"></div><div class="watch-face skx-face"><div id="hour-markers"></div><div class="watch-brand skx-brand">IRONCLAD</div><div class="watch-model skx-model">AUTOMATIC</div><div class="watch-specs skx-specs">DIVER'S 200m</div><div class="date-window skx-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour skx-hour" id="hand-hour"></div><div class="hand-minute skx-minute" id="hand-minute"></div><div class="hand-second skx-second" id="hand-second"></div><div class="center-pin skx-pin"></div></div><div class="glass-reflection skx-glass"></div></div>`
-        },
         sbsa255: {
             desc: 'Seiko 5 Sports JDM 21600 BPH<br>37.4mm Field/Diver Case',
             isDigital: false, bph: 21600, hideMarkers: [3],
-            template: `<div class="watch-crown sbsa-crown"></div><div class="sbsa-bezel"></div><div class="watch-face sbsa-face"><div id="hour-markers"></div><div class="watch-brand sbsa-brand">IRONSPORT <span class="sbsa-5">5</span></div><div class="watch-model sbsa-model">FULL IRON<br>AUTOMATIC</div><div class="watch-specs sbsa-specs">MADE IN JAPAN</div><div class="date-window sbsa-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour sbsa-hour" id="hand-hour"></div><div class="hand-minute sbsa-minute" id="hand-minute"></div><div class="hand-second sbsa-second" id="hand-second"></div><div class="center-pin sbsa-pin"></div></div></div><div class="glass-reflection"></div>`
+            template: `<div class="watch-crown sbsa-crown"></div><div class="sbsa-bezel"></div><div class="watch-face sbsa-face"><div id="hour-markers"></div><div class="watch-brand sbsa-brand"><span class="sbsa-5">SEIKO SPORT</span></div><div class="watch-model sbsa-model">FULL IRON<br>AUTOMATIC<br><div></div></div><div class="watch-specs sbsa-specs"><div class="gs-specs-red">100M WR</div>MADE IN JAPAN</div><div class="date-window sbsa-date"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour sbsa-hour" id="hand-hour"></div><div class="hand-minute sbsa-minute" id="hand-minute"></div><div class="hand-second sbsa-second" id="hand-second"></div><div class="center-pin sbsa-pin"></div></div></div><div class="glass-reflection"></div>`
         },
         seaclad: {
             desc: 'Co-Axial Master 25200 BPH<br>Wave Dial & Helium Valve',
@@ -295,25 +501,80 @@ const ClockModule = (function() {
         // --- UPDATE SOLAR ENGINE ---
         updateSunlightReflection(now);
 
-        if (watch.isDigital) {
+        if (currentMode === 'casiotron') {
+            // --- CASIOTRON BRAIN ---
+            const headerEl = document.getElementById('casio-header');
+            const mainEl = document.getElementById('casio-main');
+            const secEl = document.getElementById('casio-sec');
+            const lcdEl = document.getElementById('casiotron-lcd');
+            const ind1El = document.getElementById('casio-ind-1');
+            if (!headerEl) return;
+
+            // Illumination
+            if (casiotronState.light) lcdEl.classList.add('illuminated');
+            else lcdEl.classList.remove('illuminated');
+
+            if (casiotronState.mode === 0) {
+                // MODE: TIME
+                const days = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+                headerEl.textContent = `${days[now.getDay()]} ${String(now.getDate()).padStart(2, '0')}`;
+                mainEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                secEl.textContent = String(now.getSeconds()).padStart(2, '0');
+                ind1El.textContent = "RCVD"; // Simulates radio signal reception
+            } else if (casiotronState.mode === 1) {
+                // MODE: WORLD TIME (Simulating Tokyo +9)
+                headerEl.textContent = "WT TYO";
+                const tokyoTime = new Date(now.getTime() + (12 * 60 * 60 * 1000));
+                mainEl.textContent = `${String(tokyoTime.getHours()).padStart(2, '0')}:${String(tokyoTime.getMinutes()).padStart(2, '0')}`;
+                secEl.textContent = String(tokyoTime.getSeconds()).padStart(2, '0');
+                ind1El.textContent = "WT";
+            } else if (casiotronState.mode === 2) {
+                // MODE: STOPWATCH (Millisecond precision)
+                headerEl.textContent = "STW";
+                let totalMs = casiotronState.stw.elapsed;
+                if (casiotronState.stw.running) totalMs += now.getTime() - casiotronState.stw.start;
+
+                const ms = Math.floor((totalMs % 1000) / 10);
+                const s = Math.floor((totalMs / 1000) % 60);
+                const m = Math.floor((totalMs / 60000) % 60);
+                mainEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                secEl.textContent = String(ms).padStart(2, '0');
+                ind1El.textContent = casiotronState.stw.running ? "RUN" : "STP";
+            } else if (casiotronState.mode === 3) {
+                // MODE: TIMER
+                headerEl.textContent = "TMR";
+                let remain = casiotronState.tmr.remaining;
+                if (casiotronState.tmr.running) {
+                    remain = casiotronState.tmr.end - now.getTime();
+                    if (remain <= 0) { remain = 0; casiotronState.tmr.running = false; }
+                }
+                const s = Math.floor((remain / 1000) % 60);
+                const m = Math.floor((remain / 60000) % 60);
+                mainEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                secEl.textContent = "00";
+                ind1El.textContent = casiotronState.tmr.running ? "RUN" : "STP";
+            } else if (casiotronState.mode === 4) {
+                // MODE: ALARM
+                headerEl.textContent = "ALM";
+                mainEl.textContent = "12:00";
+                secEl.textContent = "ON";
+                ind1El.textContent = "ALM";
+            }
+
+        } else if (watch.isDigital) {
+            // --- NORMAL DIGITAL LOGIC (W800 / DATABANK) ---
             const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
             const prefix = currentMode === 'databank' ? 'dbc' : 'lcd';
-            
             const yearEl = document.getElementById(`${prefix}-year`);
             if (yearEl) yearEl.textContent = now.getFullYear();
-            
             const dateEl = document.getElementById(`${prefix}-date`);
             if (dateEl) dateEl.textContent = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            
             const dayEl = document.getElementById(`${prefix}-day`);
             if (dayEl) dayEl.textContent = days[now.getDay()];
-            
             const hourEl = document.getElementById(`${prefix}-hour`);
             if (hourEl) hourEl.textContent = String(now.getHours()).padStart(2, '0');
-            
             const minEl = document.getElementById(`${prefix}-minute`);
             if (minEl) minEl.textContent = String(now.getMinutes()).padStart(2, '0');
-            
             const secEl = document.getElementById(`${prefix}-second`);
             if (secEl) secEl.textContent = String(now.getSeconds()).padStart(2, '0');
         } else {
