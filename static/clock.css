@@ -943,22 +943,23 @@
     background: linear-gradient(145deg, #f1f5f9 0%, #cbd5e1 50%, #94a3b8 100%); 
     border-radius: 50%; 
     z-index: 1;
-    /* FIX PARA EL BUG 3D: Obliga al navegador a respetar la profundidad física de los elementos hijos */
     transform-style: preserve-3d; 
 }
 
 /* Physical Buttons (Polar Coordinates System) */
 .casio-btn {
     position: absolute; 
-    /* NUEVAS DIMENSIONES: Doble de ancho, casi la mitad de altura */
     width: 12px; 
     height: 8px; 
     
-    top: 50%; left: 50%;
-    margin-top: -4px; margin-left: -6px; /* Re-centrado a sus nuevas medidas */
+    top: 50%; 
+    left: 50%;
+    margin-top: -4px; 
+    margin-left: -6px; 
     
     background: linear-gradient(90deg, #94a3b8, #f8fafc, #64748b);
-    border-radius: 2px; 
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
     z-index: -1; 
     cursor: pointer; 
     box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
@@ -972,7 +973,6 @@
     --radius: 83px; 
     --btn-push: 0px;
     
-    /* FIX PARA EL BUG 3D: Añadimos 'translateZ(-1px)' al final para empujarlos por detrás de la pantalla */
     transform: rotate(var(--angle)) translateY(calc(-1 * (var(--radius) - var(--btn-push)))) translateZ(-1px);
     transition: transform 0.1s, box-shadow 0.1s;
 }
@@ -1083,9 +1083,9 @@
 
 .casiotron-model {
     color: #f8fafc; font-family: 'Arial', sans-serif; 
-    font-size: 6.5px; 
-    font-weight: bold; 
-    letter-spacing: 1px;
+    font-size: 6px; 
+    font-weight: 900; 
+    letter-spacing: 2.5px;
     z-index: 3;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
     text-align: center;
@@ -1132,7 +1132,31 @@
     border-bottom: 0.5px solid rgba(0,0,0,0.08); /* Línea divisoria tenue */
 }
 .casio-ps { font-family: 'Arial', sans-serif; font-size: 3px; font-weight: 900; color: #111827; font-style: italic; margin-bottom: 2px;}
-.casio-date-matrix { font-family: 'Courier New', monospace; font-size: 8px; font-weight: 900; color: #111827; letter-spacing: 0.5px;}
+
+.casio-date-matrix { 
+    /* font-style: italic; */
+    font-family: "Handjet", sans-serif;
+    font-size: 12px; 
+    font-weight: 300; 
+    color: #111827; 
+    letter-spacing: 0.5px;
+    font-variation-settings:
+    "ELGR" 1,
+    "ELSH" 2;
+    transform: skewX(355deg); /* Inclinación mecánica */
+    display: inline-block; /
+}
+
+.casiotron-day {
+    font-style: normal;
+    margin-right: 18px;
+}
+
+.strong-time {
+    font-weight: 400 !important;
+    margin-left: auto; 
+    font-style: normal;  
+}
 
 /* 2. Middle Strip (Indicators) */
 .casio-indicators-row {

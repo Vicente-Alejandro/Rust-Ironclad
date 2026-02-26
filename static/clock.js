@@ -9,13 +9,112 @@ const ClockModule = (function() {
     function loadCalcState() { const saved = localStorage.getItem('ironclad_calc_state'); if (saved) { try { calcState = JSON.parse(saved); } catch(e) {} } }
     function saveCalcState() { localStorage.setItem('ironclad_calc_state', JSON.stringify(calcState)); }
 
-    // --- ESTADO DEL CASIOTRON TRN-50 ---
+    // --- CASIOTRON TRN-50 STATE ---
+    const worldCities = [
+        { code: 'TYO', offset: 9 }, { code: 'LON', offset: 0 }, { code: 'NYC', offset: 1 }, 
+        { code: 'LAX', offset: -4 }, { code: 'SYD', offset: -7 }, { code: 'DXB', offset: 11 }
+    ];
+
     let casiotronState = {
         mode: 0, // 0: TIME, 1: WT, 2: STW, 3: TMR, 4: ALM
-        stw: { running: false, start: 0, elapsed: 0 },
-        tmr: { running: false, end: 0, remaining: 10 * 60 * 1000, default: 10 * 60 * 1000 }, // 10 mins por defecto
-        light: false
+        is24h: false,
+        isAdjusting: false,
+        isMuted: false, 
+        sig: false, // NEW: Hourly Chime (Signal)
+        lastChimeHour: -1, // Guard to prevent multiple chimes in the same second
+        wtIndex: 0,
+        stw: { running: false, start: 0, elapsed: 0, isSplit: false, splitTime: 0 }, // NEW: Split properties
+        tmr: { running: false, end: 0, remaining: 10 * 60 * 1000, default: 10 * 60 * 1000, isAlerting: false },
+        alm: { active: false, hours: 12, minutes: 0, isAlerting: false },
+        light: false,
+        blinkFlag: true
     };
+
+    // Load saved settings from LocalStorage
+    function loadCasiotronState() {
+        const saved = localStorage.getItem('ironclad_casiotron_state');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                // We safely merge so we don't break timers if running
+                casiotronState.mode = parsed.mode ?? 0;
+                casiotronState.is24h = parsed.is24h ?? false;
+                casiotronState.isMuted = parsed.isMuted ?? false; 
+                casiotronState.sig = parsed.sig ?? false; // Load hourly chime state
+                casiotronState.wtIndex = parsed.wtIndex ?? 0;
+                casiotronState.tmr.default = parsed.tmr?.default ?? 10 * 60 * 1000;
+                casiotronState.tmr.remaining = parsed.tmr?.remaining ?? 10 * 60 * 1000;
+                casiotronState.alm.hours = parsed.alm?.hours ?? 12;
+                casiotronState.alm.minutes = parsed.alm?.minutes ?? 0;
+                casiotronState.alm.active = parsed.alm?.active ?? false;
+            } catch(e) {}
+        }
+    }
+    
+    function saveCasiotronState() {
+        localStorage.setItem('ironclad_casiotron_state', JSON.stringify(casiotronState));
+    }
+
+    loadCasiotronState(); // Call immediately on load
+
+    setInterval(() => { casiotronState.blinkFlag = !casiotronState.blinkFlag; }, 500);
+
+    // --- CASIO BEEP SYNTHESIZER ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playCasioBeep(type = 'normal') {
+        // If button beeps are muted, ignore normal beeps (alarms/chimes still sound)
+        if (type === 'normal' && casiotronState.isMuted) return;
+
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        // Classic Casio sound is a high square wave
+        osc.type = 'square';
+        
+        if (type === 'normal') {
+            osc.frequency.setValueAtTime(4000, audioCtx.currentTime); // 4kHz
+            gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        } else if (type === 'alarm') {
+            // Alarm / Chime sound: two rapid beeps
+            osc.frequency.setValueAtTime(4000, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime + 0.15);
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime + 0.25);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        }
+    }
+    
+    // Function to handle continuous alarms
+    let alarmInterval = null;
+    function triggerAlarm() {
+        if (alarmInterval) return;
+        let count = 0;
+        alarmInterval = setInterval(() => {
+            playCasioBeep('alarm');
+            count++;
+            if (count > 10) { // Beeps 10 times then auto-stops
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+        }, 500);
+    }
+    
+    function stopAlarm() {
+        if (alarmInterval) {
+            clearInterval(alarmInterval);
+            alarmInterval = null;
+        }
+    }
     
     // --- SOLAR LIGHT ENGINE (SUN PATH SIMULATOR) ---
     let userLocation = { lat: -29.9045, lon: -71.2489 }; // Default: La Serena
@@ -59,7 +158,6 @@ const ClockModule = (function() {
     }
 
     function updateSunlightReflection(now, force = false) {
-        // Recalculate every 5 seconds to save resources, unless forced
         if (!force && now.getTime() - lastSunUpdate < 5000) return; 
         lastSunUpdate = now.getTime();
 
@@ -69,7 +167,6 @@ const ClockModule = (function() {
         let intensity2 = 0;
 
         if (sun.elevation > 0) {
-            // The sun is above the horizon. We maximize at 0.4 if it exceeds 20 degrees elevation.
             const normalizationFactor = Math.min(sun.elevation / 20, 1);
             intensity1 = 0.4 * normalizationFactor;
             intensity2 = 0.1 * normalizationFactor;
@@ -112,10 +209,10 @@ const ClockModule = (function() {
                                 <div class="casiotron-lcd" id="casiotron-lcd">
                                     <div class="casio-top-row">
                                         <span class="casio-ps">PS</span>
-                                        <span class="casio-date-matrix" id="casio-header">SU 6.30</span>
+                                        <span class="casio-date-matrix" id="casio-header"><strong class="casiotron-day">SU</strong>6.30</span>
                                     </div>
                                     <div class="casio-indicators-row">
-                                        <span>LT</span><span id="casio-ind-1" class="active">RCVD</span><span>SNZ</span><span>ALM</span><span>SIG</span><span>MUTE</span><span class="casio-red">LOW</span>
+                                        <span>LT</span><span id="casio-ind-1" class="active">RCVD</span><span>TMR</span><span>ALM</span><span>SIG</span><span id="casio-ind-mute">MUTE</span><span class="casio-red">LOW</span>
                                     </div>
                                     <div class="casio-bottom-row">
                                         <span class="casio-pm" id="casio-pm">P</span>
@@ -135,20 +232,69 @@ const ClockModule = (function() {
                 </div>
                 <div class="glass-reflection casiotron-glass"></div>
             `,
-            onMount: function() {
-                // Mapeo lógico de botones físicos
+            onMount: function () {
+                let pressTimer = null;
+                let isLongPress = false;
+
+                // Logical mapping of physical buttons
                 document.querySelectorAll('.casio-btn').forEach(btn => {
                     btn.addEventListener('pointerdown', (e) => {
-                        e.preventDefault(); // Evita comportamientos fantasma en móviles
+                        e.preventDefault();
                         e.stopPropagation();
+                        // --- FIX PARA LOS BORDES DEL BOTÓN ---
+                        // "Captura" el puntero. Obliga al navegador a mandar los eventos a este botón
+                        // aunque la animación CSS lo aleje del cursor físico.
+                        if (e.pointerId) {
+                            e.target.setPointerCapture(e.pointerId);
+                        }
+                        // If an alarm/timer is sounding, ANY button stops it
+                        if (casiotronState.alm.isAlerting || casiotronState.tmr.isAlerting) {
+                            stopAlarm();
+                            casiotronState.alm.isAlerting = false;
+                            
+                            // Reset timer to original time visually
+                            if (casiotronState.tmr.isAlerting) {
+                                casiotronState.tmr.isAlerting = false;
+                                casiotronState.tmr.remaining = casiotronState.tmr.default;
+                            }
+                            
+                            saveCasiotronState(); // Save state
+                            return; // Do not execute normal button action
+                        }
+
                         const id = e.target.dataset.btn;
-                        
-                        if (id === 'C') {
-                            // BOTÓN C (Bottom Left): Cambiar Modo
-                            casiotronState.mode = (casiotronState.mode + 1) % 5;
-                        } else if (id === 'D') {
-                            // BOTÓN D (Bottom Right): Start/Stop
-                            if (casiotronState.mode === 2) { // STW
+                        playCasioBeep('normal'); // All buttons beep when pressed (unless muted)
+
+                        // --- LONG PRESS SETUP FOR TIMER RESET (BUTTON D) ---
+                        if (id === 'D' && casiotronState.mode === 3 && !casiotronState.isAdjusting) {
+                            isLongPress = false;
+                            pressTimer = setTimeout(() => {
+                                isLongPress = true;
+                                casiotronState.tmr.running = false;
+                                casiotronState.tmr.remaining = casiotronState.tmr.default;
+                                playCasioBeep('normal'); // Second beep to confirm reset!
+                                saveCasiotronState();
+                            }, 3000); // 3 seconds hold
+                            return; // Wait for pointerup to do the short press
+                        }
+
+                        if (id === 'C') { // --- BUTTON C: MODE ---
+                            if (casiotronState.isAdjusting) {
+                                // Ignore or toggle parameter to adjust (simplified)
+                            } else {
+                                casiotronState.mode = (casiotronState.mode + 1) % 5;
+                            }
+                        }
+
+                        else if (id === 'D') { // --- BUTTON D: START/STOP/PLUS ---
+                            if (casiotronState.mode === 0 && !casiotronState.isAdjusting) {
+                                // TIME: Toggle 12H/24H
+                                casiotronState.is24h = !casiotronState.is24h;
+                            } else if (casiotronState.mode === 1) {
+                                // WT: Change City
+                                casiotronState.wtIndex = (casiotronState.wtIndex + 1) % worldCities.length;
+                            } else if (casiotronState.mode === 2) {
+                                // STW: Play/Pause
                                 if (casiotronState.stw.running) {
                                     casiotronState.stw.running = false;
                                     casiotronState.stw.elapsed += Date.now() - casiotronState.stw.start;
@@ -156,7 +302,80 @@ const ClockModule = (function() {
                                     casiotronState.stw.running = true;
                                     casiotronState.stw.start = Date.now();
                                 }
-                            } else if (casiotronState.mode === 3) { // TMR
+                            } else if (casiotronState.mode === 3) {
+                                // TMR Adjusting
+                                if (casiotronState.isAdjusting) {
+                                    // Add 1 minute to Timer
+                                    casiotronState.tmr.default += 60 * 1000;
+                                    if (casiotronState.tmr.default > 60 * 60 * 1000) casiotronState.tmr.default = 60 * 1000; // Max 60 mins
+                                    casiotronState.tmr.remaining = casiotronState.tmr.default;
+                                }
+                            } else if (casiotronState.mode === 4) {
+                                // ALM Adjusting or Cycle
+                                if (casiotronState.isAdjusting) {
+                                    casiotronState.alm.hours = (casiotronState.alm.hours + 1) % 24;
+                                } else {
+                                    // CYCLE ALARM & SIG (Chime) exactly like real Casio:
+                                    // OFF/OFF -> ALM ON -> SIG ON -> BOTH ON -> OFF/OFF
+                                    if (!casiotronState.alm.active && !casiotronState.sig) {
+                                        casiotronState.alm.active = true;
+                                    } else if (casiotronState.alm.active && !casiotronState.sig) {
+                                        casiotronState.alm.active = false;
+                                        casiotronState.sig = true;
+                                    } else if (!casiotronState.alm.active && casiotronState.sig) {
+                                        casiotronState.alm.active = true;
+                                    } else {
+                                        casiotronState.alm.active = false;
+                                        casiotronState.sig = false;
+                                    }
+                                }
+                            }
+                        }
+
+                        else if (id === 'A') { // --- BUTTON A: ADJUST/RESET/SPLIT/MUTE ---
+                            if (casiotronState.mode === 0) {
+                                // TIME Mode: Toggle MUTE
+                                casiotronState.isMuted = !casiotronState.isMuted;
+                            } else if (casiotronState.mode === 2) {
+                                // STW: Split / Reset Logic
+                                if (casiotronState.stw.running) {
+                                    // If running, A acts as SPLIT toggle
+                                    casiotronState.stw.isSplit = !casiotronState.stw.isSplit;
+                                    if (casiotronState.stw.isSplit) {
+                                        // Save the exact freeze time
+                                        casiotronState.stw.splitTime = casiotronState.stw.elapsed + (Date.now() - casiotronState.stw.start);
+                                    }
+                                } else {
+                                    // If stopped, A acts as CLEAR
+                                    if (casiotronState.stw.isSplit) {
+                                        casiotronState.stw.isSplit = false; // Reveal stopped total time
+                                    } else {
+                                        casiotronState.stw = { running: false, start: 0, elapsed: 0, isSplit: false, splitTime: 0 };
+                                    }
+                                }
+                            } else if (casiotronState.mode === 3 || casiotronState.mode === 4) {
+                                // TMR and ALM: Enter/Exit adjust mode
+                                casiotronState.isAdjusting = !casiotronState.isAdjusting;
+                            }
+                        }
+
+                        else if (id === 'B') { // --- BUTTON B: LIGHT ---
+                            casiotronState.light = true;
+                            setTimeout(() => casiotronState.light = false, 2000);
+                        }
+                        
+                        saveCasiotronState(); // Persist changes
+                    });
+
+                    // POINTER END HANDLERS FOR SHORT PRESS ON LONG-PRESSABLE BUTTONS
+                    const handlePointerEnd = (e) => {
+                        const id = e.target.dataset.btn;
+                        if (id === 'D' && casiotronState.mode === 3 && !casiotronState.isAdjusting) {
+                            if (pressTimer) {
+                                clearTimeout(pressTimer);
+                                pressTimer = null;
+                            }
+                            if (e.type === 'pointerup' && !isLongPress) {
                                 if (casiotronState.tmr.running) {
                                     casiotronState.tmr.running = false;
                                     casiotronState.tmr.remaining = casiotronState.tmr.end - Date.now();
@@ -164,51 +383,16 @@ const ClockModule = (function() {
                                     casiotronState.tmr.running = true;
                                     casiotronState.tmr.end = Date.now() + casiotronState.tmr.remaining;
                                 }
+                                saveCasiotronState();
                             }
-                        } else if (id === 'A') {
-                            // BOTÓN A (Top Left): Reset
-                            if (casiotronState.mode === 2) {
-                                casiotronState.stw = { running: false, start: 0, elapsed: 0 };
-                            } else if (casiotronState.mode === 3) {
-                                casiotronState.tmr = { running: false, end: 0, remaining: casiotronState.tmr.default, default: casiotronState.tmr.default };
-                            }
-                        } else if (id === 'B') {
-                            // BOTÓN B (Top Right): Super Illuminator LED
-                            casiotronState.light = true;
-                            setTimeout(() => casiotronState.light = false, 2000); // Se apaga a los 2 seg
                         }
-                    });
+                    };
+
+                    btn.addEventListener('pointerup', handlePointerEnd);
+                    btn.addEventListener('pointerleave', handlePointerEnd);
+                    btn.addEventListener('pointerout', handlePointerEnd);
                 });
             }
-        },
-        grandseiko: {
-            desc: 'Hi-Beat 36000 BPH<br>Zaratsu Polish & Dauphine Hands',
-            isDigital: false,
-            bph: 36000, // 10 saltos exactos por segundo (Hi-Beat)
-            hideMarkers: [3],
-            template: `
-                <div class="watch-crown gs-crown"></div>
-                <div class="gs-bezel"></div>
-                
-                <div class="watch-face gs-face">
-                    <div class="gs-texture"></div>
-                    
-                    <div id="hour-markers"></div>
-                    
-                    <div class="watch-brand gs-brand">GS<br><span class="gs-sub">grand seiko</span></div>
-                    <div class="watch-specs gs-specs">HI-BEAT 36000 <div class="gs-specs-red">GMT</div></div>
-                    
-                    <div class="date-window gs-date"><span class="date-number" id="date-display">--</span></div>
-                    
-                    <div class="hands-container">
-                        <div class="hand-hour gs-hour" id="hand-hour"></div>
-                        <div class="hand-minute gs-minute" id="hand-minute"></div>
-                        <div class="hand-second gs-second" id="hand-second"></div>
-                        <div class="center-pin gs-pin"></div>
-                    </div>
-                </div>
-                <div class="glass-reflection"></div>
-            `
         },
         submariner: {
             desc: 'Swiss GMT Chronometer 28800 BPH<br>Bicolor Ceramic Bezel',
@@ -238,12 +422,10 @@ const ClockModule = (function() {
                 <div class="glass-reflection"></div>
                 <div class="submariner-cyclops"></div>
             `,
-            // Ejecutamos código para inyectar los números matemáticamente al cargar el reloj
             onMount: function () {
                 const gmtContainer = document.getElementById('gmt-bezel-numbers');
                 if (!gmtContainer) return;
 
-                // Nivel Experto: Array de tu bisel Dive/GMT personalizado
                 const gmtMarks = [
                     '▼', '▮', '1', '▮', '2', '▮', '3', '',
                     '4', '', '5', '', '6', '', '7', '',
@@ -270,43 +452,27 @@ const ClockModule = (function() {
                     gmtContainer.appendChild(numDiv);
                 });
 
-                // --- LÓGICA DE BISEL ROTATORIO (DIVE BEZEL) ---
                 const bezelElement = document.querySelector('.submariner-bezel');
                 if (!bezelElement) return;
 
-                // Recuperar la rotación guardada (o 0 por defecto)
                 let currentRotation = parseFloat(localStorage.getItem('ironclad_submariner_bezel')) || 0;
                 bezelElement.style.transform = `rotate(${currentRotation}deg)`;
 
-                // Función para girar el bisel (Unidireccional: 120 clicks = 3 grados por click)
                 const rotateBezel = (degrees) => {
                     currentRotation += degrees;
-                    // Mantenemos el número entre -360 y 0 para que no crezca infinitamente
                     if (currentRotation <= -360) currentRotation = 0;
 
                     bezelElement.style.transform = `rotate(${currentRotation}deg)`;
                     localStorage.setItem('ironclad_submariner_bezel', currentRotation);
                 };
 
-                // Asignar evento de clic al bisel
                 bezelElement.addEventListener('mousedown', (e) => {
-                    e.stopPropagation(); // Evitar cerrar el modal maximizado
-
-                    // Obtener las dimensiones del bisel para saber de qué lado hicimos clic
-                    const rect = bezelElement.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-
-                    // Si hacemos clic, simulamos el giro manual. 
-                    // Unidireccional hacia la izquierda (-3 grados = 1 click de Rolex)
-                    // Si quisieras que gire rápido si dejas el mouse apretado, requeriría un setInterval, 
-                    // pero para mayor control, un clic = un salto de 3 a 15 grados es más realista en UI.
-
-                    rotateBezel(-15); // Rotamos 5 clics de golpe (15 grados) para que sea cómodo de usar
+                    e.stopPropagation(); 
+                    rotateBezel(-15); 
                 });
 
-                // Soporte táctil para móviles
                 bezelElement.addEventListener('touchstart', (e) => {
-                    e.preventDefault(); // Evitar scroll de pantalla
+                    e.preventDefault(); 
                     e.stopPropagation();
                     rotateBezel(-15);
                 }, { passive: false });
@@ -316,6 +482,35 @@ const ClockModule = (function() {
             desc: 'Mechanical Module 18800 BPH<br>Open Heart Case',
             isDigital: false, bph: 18800, hideMarkers: [3, 6],
             template: `<div class="watch-crown"></div><div class="watch-face"><div class="inner-bezel"></div><div id="hour-markers"></div><div class="watch-brand">Ironclad</div><div class="watch-model">AUTOMATIC</div><div class="watch-specs">24 JEWELS<br>SAPPHIRE<br>jap mov</div></div></div><div class="date-window"><span class="date-number" id="date-display">--</span></div><div class="hands-container"><div class="hand-hour" id="hand-hour"></div><div class="hand-minute" id="hand-minute"></div><div class="hand-second" id="hand-second"></div><div class="center-pin"></div></div><div class="glass-reflection"></div></div>`
+        },
+        grandseiko: {
+            desc: 'Hi-Beat 36000 BPH<br>Zaratsu Polish & Dauphine Hands',
+            isDigital: false,
+            bph: 36000, // 10 saltos exactos por segundo (Hi-Beat)
+            hideMarkers: [3],
+            template: `
+                <div class="watch-crown gs-crown"></div>
+                <div class="gs-bezel"></div>
+                
+                <div class="watch-face gs-face">
+                    <div class="gs-texture"></div>
+                    
+                    <div id="hour-markers"></div>
+                    
+                    <div class="watch-brand gs-brand">GS<br><span class="gs-sub">grand seiko</span></div>
+                    <div class="watch-specs gs-specs">HI-BEAT 36000 <div class="gs-specs-red">GMT</div></div>
+                    
+                    <div class="date-window gs-date"><span class="date-number" id="date-display">--</span></div>
+                    
+                    <div class="hands-container">
+                        <div class="hand-hour gs-hour" id="hand-hour"></div>
+                        <div class="hand-minute gs-minute" id="hand-minute"></div>
+                        <div class="hand-second gs-second" id="hand-second"></div>
+                        <div class="center-pin gs-pin"></div>
+                    </div>
+                </div>
+                <div class="glass-reflection"></div>
+            `
         },
         vostok: {
             desc: 'Russian Diver 19800 BPH<br>Domed Acrylic Crystal',
@@ -438,7 +633,6 @@ const ClockModule = (function() {
             select.value = savedMode;
         }
 
-        // Request location to simulate real sun
         requestLocation();
 
         select.addEventListener('change', (e) => {
@@ -502,7 +696,6 @@ const ClockModule = (function() {
         }
         if (typeof watch.onMount === 'function') watch.onMount();
         
-        // Force a light update when changing watches
         updateSunlightReflection(new Date(), true);
     }
     
@@ -511,76 +704,180 @@ const ClockModule = (function() {
         const watch = WATCH_CATALOG[currentMode];
         if (!watch) { requestRef = requestAnimationFrame(updateLoop); return; }
 
-        // --- UPDATE SOLAR ENGINE ---
         updateSunlightReflection(now);
 
         if (currentMode === 'casiotron') {
-            // --- CASIOTRON BRAIN ---
             const headerEl = document.getElementById('casio-header');
             const mainEl = document.getElementById('casio-main');
             const secEl = document.getElementById('casio-sec');
             const lcdEl = document.getElementById('casiotron-lcd');
-            const ind1El = document.getElementById('casio-ind-1');
+            const pmEl = document.getElementById('casio-pm');
+            const indRcvd = document.getElementById('casio-ind-1'); 
+
+            // Ghost indicators in the DOM
+            const indAlm = document.querySelector('.casio-indicators-row span:nth-child(4)'); // ALM
+            const indSig = document.querySelector('.casio-indicators-row span:nth-child(5)'); // SIG (Hourly Chime)
+            const indMute = document.getElementById('casio-ind-mute'); // MUTE 
+            const indSnz = document.querySelector('.casio-indicators-row span:nth-child(3)'); // SNZ (Snooze) - not used IRL but TIMER
+
             if (!headerEl) return;
 
             // Illumination
             if (casiotronState.light) lcdEl.classList.add('illuminated');
             else lcdEl.classList.remove('illuminated');
 
+            // Paint active indicators
+            if (indAlm) indAlm.className = casiotronState.alm.active ? 'active' : '';
+            if (indSig) indSig.className = casiotronState.sig ? 'active' : '';
+            if (indMute) indMute.className = casiotronState.isMuted ? 'active' : '';
+            // Enciende SNZ si el Timer está corriendo o pausado a la mitad
+            if (indSnz) indSnz.className = (casiotronState.tmr.running || casiotronState.tmr.remaining < casiotronState.tmr.default) ? 'active' : '';
+
+            // Blinking logic for adjustments
+            const blink = casiotronState.isAdjusting && casiotronState.blinkFlag ? ' ' : '';
+
+            // Format current time for top-right display in modes
+            let currentHourShort = now.getHours();
+            if (!casiotronState.is24h) {
+                currentHourShort = currentHourShort % 12 || 12;
+            }
+            const timeString = `${currentHourShort}:${String(now.getMinutes()).padStart(2, '0')}`;
+
             if (casiotronState.mode === 0) {
-                // MODO: TIME
+                // MODE: TIME
                 const days = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
                 const isPM = now.getHours() >= 12;
-                const displayHour = now.getHours() % 12 || 12; // Formato 12 hrs
 
-                // Mostrar u ocultar la 'P'
-                document.getElementById('casio-pm').style.visibility = isPM ? 'visible' : 'hidden';
+                let displayHour = now.getHours();
+                if (!casiotronState.is24h) {
+                    displayHour = displayHour % 12 || 12; 
+                    pmEl.textContent = 'P';
+                    pmEl.style.visibility = isPM ? 'visible' : 'hidden';
+                } else {
+                    pmEl.textContent = '24H';
+                    pmEl.style.visibility = 'visible';
+                }
 
-                // Fecha formato 6.30 (Mes.Día)
-                headerEl.textContent = `${days[now.getDay()]} ${now.getMonth() + 1}.${String(now.getDate()).padStart(2, '0')}`;
-
+                headerEl.innerHTML = `<strong class="casiotron-day">${days[now.getDay()]}</strong> ${now.getMonth() + 1}.${String(now.getDate()).padStart(2, '0')}`;
                 mainEl.textContent = `${String(displayHour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                 secEl.textContent = String(now.getSeconds()).padStart(2, '0');
-                ind1El.textContent = "RCVD";
-                ind1El.classList.add('active');
-            } else if (casiotronState.mode === 1) {
-                // MODE: WORLD TIME (Simulating Tokyo +9)
-                headerEl.textContent = "WT TYO";
-                const tokyoTime = new Date(now.getTime() + (12 * 60 * 60 * 1000));
-                mainEl.textContent = `${String(tokyoTime.getHours()).padStart(2, '0')}:${String(tokyoTime.getMinutes()).padStart(2, '0')}`;
-                secEl.textContent = String(tokyoTime.getSeconds()).padStart(2, '0');
-                ind1El.textContent = "WT";
-            } else if (casiotronState.mode === 2) {
-                // MODE: STOPWATCH (Millisecond precision)
-                headerEl.textContent = "STW";
-                let totalMs = casiotronState.stw.elapsed;
-                if (casiotronState.stw.running) totalMs += now.getTime() - casiotronState.stw.start;
+                indRcvd.className = 'active'; 
+            }
+
+            else if (casiotronState.mode === 1) {
+                // MODE: WORLD TIME
+                const city = worldCities[casiotronState.wtIndex];
+                headerEl.innerHTML = `<strong class="casiotron-day">WT</strong> ${city.code}`;
+
+                const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+                const wtDate = new Date(utc + (3600000 * city.offset));
+
+                let displayHour = wtDate.getHours();
+                if (!casiotronState.is24h) {
+                    pmEl.textContent = 'P';
+                    pmEl.style.visibility = displayHour >= 12 ? 'visible' : 'hidden';
+                    displayHour = displayHour % 12 || 12;
+                } else {
+                    pmEl.textContent = '24H';
+                    pmEl.style.visibility = 'visible';
+                }
+
+                mainEl.textContent = `${String(displayHour).padStart(2, '0')}:${String(wtDate.getMinutes()).padStart(2, '0')}`;
+                secEl.textContent = String(wtDate.getSeconds()).padStart(2, '0');
+                indRcvd.className = '';
+            }
+
+            else if (casiotronState.mode === 2) {
+                // MODE: STOPWATCH
+                pmEl.style.visibility = 'hidden';
+                indRcvd.className = '';
+                
+                // Show SPL if in split mode, else STW
+                const modeLabel = casiotronState.stw.isSplit ? 'SPL' : 'STW';
+                headerEl.innerHTML = `<strong class="casiotron-day">${modeLabel}</strong><strong class="strong-time">${timeString}</strong>`;
+                
+                let totalMs = 0;
+                if (casiotronState.stw.isSplit) {
+                    // Frozen display
+                    totalMs = casiotronState.stw.splitTime;
+                } else {
+                    // Running display
+                    totalMs = casiotronState.stw.elapsed;
+                    if (casiotronState.stw.running) totalMs += now.getTime() - casiotronState.stw.start;
+                }
 
                 const ms = Math.floor((totalMs % 1000) / 10);
                 const s = Math.floor((totalMs / 1000) % 60);
                 const m = Math.floor((totalMs / 60000) % 60);
                 mainEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
                 secEl.textContent = String(ms).padStart(2, '0');
-                ind1El.textContent = casiotronState.stw.running ? "RUN" : "STP";
-            } else if (casiotronState.mode === 3) {
+            }
+
+            else if (casiotronState.mode === 3) {
                 // MODE: TIMER
-                headerEl.textContent = "TMR";
+                headerEl.innerHTML = `<strong class="casiotron-day">TMR</strong><strong class="strong-time">${timeString}</strong>`;
+                pmEl.style.visibility = 'hidden';
+
                 let remain = casiotronState.tmr.remaining;
                 if (casiotronState.tmr.running) {
                     remain = casiotronState.tmr.end - now.getTime();
-                    if (remain <= 0) { remain = 0; casiotronState.tmr.running = false; }
+                    if (remain <= 0) {
+                        remain = 0;
+                        casiotronState.tmr.running = false;
+                        casiotronState.tmr.remaining = casiotronState.tmr.default; 
+                        casiotronState.tmr.isAlerting = true;
+                        triggerAlarm(); 
+                        saveCasiotronState(); 
+                    }
                 }
                 const s = Math.floor((remain / 1000) % 60);
                 const m = Math.floor((remain / 60000) % 60);
-                mainEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+                if (casiotronState.isAdjusting && !casiotronState.blinkFlag) {
+                    mainEl.textContent = `  :  `;
+                } else {
+                    mainEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+                }
+
                 secEl.textContent = "00";
-                ind1El.textContent = casiotronState.tmr.running ? "RUN" : "STP";
-            } else if (casiotronState.mode === 4) {
+                indRcvd.className = '';
+            }
+
+            else if (casiotronState.mode === 4) {
                 // MODE: ALARM
-                headerEl.textContent = "ALM";
-                mainEl.textContent = "12:00";
-                secEl.textContent = "ON";
-                ind1El.textContent = "ALM";
+                headerEl.innerHTML = `<strong class="casiotron-day">ALM</strong><strong class="strong-time">${timeString}</strong>`;
+                pmEl.style.visibility = 'hidden';
+
+                if (casiotronState.isAdjusting && !casiotronState.blinkFlag) {
+                    mainEl.textContent = `  :00`;
+                } else {
+                    mainEl.textContent = `${String(casiotronState.alm.hours).padStart(2, '0')}:00`;
+                }
+
+                // Show ON/OFF for ALM state only (SIG state is shown by the SIG indicator above)
+                secEl.textContent = casiotronState.alm.active ? "ON" : "OF";
+                indRcvd.className = '';
+            }
+
+            // --- ALARM TRIGGER CODE ---
+            if (casiotronState.alm.active && !casiotronState.alm.isAlerting &&
+                now.getHours() === casiotronState.alm.hours &&
+                now.getMinutes() === casiotronState.alm.minutes &&
+                now.getSeconds() === 0) {
+                casiotronState.alm.isAlerting = true;
+                triggerAlarm();
+            }
+
+            // --- HOURLY CHIME TRIGGER CODE ---
+            if (casiotronState.sig && now.getMinutes() === 0 && now.getSeconds() === 0) {
+                // Ensures it only triggers once during the 00 second
+                if (casiotronState.lastChimeHour !== now.getHours()) {
+                    casiotronState.lastChimeHour = now.getHours();
+                    playCasioBeep('alarm'); // Casio hourly chime is exactly a double-beep
+                }
+            } else if (now.getSeconds() !== 0) {
+                // Reset the guard once the minute moves past 00:00
+                casiotronState.lastChimeHour = -1;
             }
 
         } else if (watch.isDigital) {
