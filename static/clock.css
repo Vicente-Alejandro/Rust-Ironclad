@@ -35,7 +35,7 @@
     opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
 }
 .watch-modal-overlay.active { opacity: 1; pointer-events: auto; }
-.watch-modal-content { position: relative; transform: scale(2.5); transition: transform 0.3s ease; }
+.watch-modal-content { position: relative; padding: 17.5px; transform: scale(3); transition: transform 0.3s ease; }
 @media (max-width: 768px) { .watch-modal-content { transform: scale(1.8); } }
 @media (max-width: 480px) { .watch-modal-content { transform: scale(1.4); } }
 
@@ -376,7 +376,7 @@
     width: 6px; height: 10px; border-radius: 3px; top: 3px; 
 }
 
-/* Tipografía y el famoso Logo Seiko "5" */
+/* Typography and the famous Seiko "5" Logo */
 .sbsa-brand { 
     color: #f8fafc; font-size: 6px; top: 22%; font-weight: 800; letter-spacing: 1px; z-index: 3; 
     display: flex; align-items: center; justify-content: center; gap: 2px;
@@ -395,14 +395,14 @@
     bottom: 16.5% !important;
 }
 
-/* Ventana de Fecha a las 3 */
+/* Date window at 3 o'clock */
 .sbsa-date {
     right: 4px; width: 22px; height: 14px; border-radius: 2px; background: #f8fafc; 
     border: 1px solid #cbd5e1; z-index: 3;
 }
 .watch-case.sbsa255 .date-number { font-size: 8px; color: #0f172a; font-weight: 800;}
 
-/* Agujas bordeadas en plata clásico Seiko 5 */
+/* Silver outlined hands classic Seiko 5 */
 .sbsa-hour { 
     width: 5px; height: 30px; background: #dcfce7; border: 1px solid #cbd5e1; 
     filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.4)); z-index: 4; 
@@ -416,7 +416,7 @@
 .sbsa-second { 
     width: 1px; height: 48px; background: #f8fafc; box-shadow: 1px 1px 1px rgba(0,0,0,0.3); z-index: 6; 
 }
-/* El "meatball" inverso del segundero de Seiko */
+/* The inverted "meatball" of the Seiko seconds hand */
 .sbsa-second::after { 
     content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; 
     background: #0f172a; border: 1px solid #f8fafc; top: 100%; left: 50%; 
@@ -432,14 +432,14 @@
     border-radius: 50%; z-index: 1;
 }
 
-/* Corona a las 3 */
+/* Crown at 3 o'clock */
 .seaclad-crown {
     width: 14px; height: 18px; right: -10px; top: 50%; transform: translateY(-50%); 
     border-radius: 0 4px 4px 0; background: linear-gradient(90deg, #94a3b8, #e2e8f0, #64748b);
     box-shadow: 2px 2px 4px rgba(0,0,0,0.4); z-index: -1; 
 }
 
-/* Válvula de Escape de Helio (HEV) a las 10 */
+/* Helium Escape Valve (HEV) at 10 o'clock */
 .he-valve {
     position: absolute; width: 12px; height: 14px; 
     left: 4px; top: 18%; /* Posición a las 10 en punto */
@@ -448,7 +448,7 @@
     box-shadow: -2px 2px 4px rgba(0,0,0,0.4); z-index: -1;
 }
 
-/* Bisel de Cerámica Azul Festoneado */
+/* Scalloped Blue Ceramic Bezel */
 .seaclad-bezel {
     position: absolute; inset: 4px; border-radius: 50%;
     background: #0f172a; /* Base oscura */
@@ -456,7 +456,7 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 1; overflow: hidden;
 }
 
-/* Dial de Cerámica con Olas */
+/* Ceramic Dial with Waves */
 .watch-case.seaclad .watch-face.seaclad-face {
     position: absolute; inset: 18px; 
     /* CLAVE: Sobrescribimos el tamaño heredado para que encaje perfectamente en el centro */
@@ -470,7 +470,7 @@
     top: 0; bottom: 0; left: 0; right: 0;
 }
 
-/* Patrón de olas grabado en láser */
+/* Wave pattern laser engraved */
 .seaclad-waves {
     position: absolute; inset: 0;
     background: repeating-linear-gradient(
@@ -482,7 +482,7 @@
     );
     z-index: 1; pointer-events: none;
 }
-/* Marcadores Luminosos (Super-LumiNova) */
+/* Luminous Markers (Super-LumiNova) */
 .watch-case.seaclad .hour-marker {
     position: absolute; left: 50%; width: 8px; height: 8px; background: #f8fafc;
     border-radius: 50%; top: 2px; 
@@ -490,22 +490,22 @@
     transform-origin: center 60px; 
     border: 1px solid #94a3b8; z-index: 3; box-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
-/* Doble bastón a las 12 (Restaurado) */
+/* Double baton at 12 o'clock (Restored) */
 .watch-case.seaclad .hour-marker:nth-child(1) {
     width: 6px; height: 10px; border-radius: 2px; top: 2px; background: #f8fafc;
     background-image: linear-gradient(90deg, #f8fafc 40%, transparent 40%, transparent 60%, #f8fafc 60%);
     
 }
-/* Bastones simples a las 3 y 9 */
+/* Simple batons at 3 and 9 */
 .watch-case.seaclad .hour-marker:nth-child(4), .watch-case.seaclad .hour-marker:nth-child(10) { 
     width: 6px; height: 10px; border-radius: 2px; top: 2px; background: #f8fafc;
 }
-/* Textos (Blanco y el clásico Rojo Seamaster) */
+/* Text (White and classic Seamaster Red) */
 .seaclad-brand { color: #f8fafc; font-size: 8px; top: 20%; font-weight: 800; letter-spacing: 1px; z-index: 3; }
 .seaclad-model { color: #ef4444; font-size: 5px; top: 30%; font-weight: 700; letter-spacing: 1px; z-index: 3; text-align: center;}
 .seaclad-specs { color: #f8fafc; font-size: 4px; bottom: 26%; font-weight: 600; letter-spacing: 0.5px; z-index: 3; text-align: center; opacity: 0.8;}
 
-/* Ventana de Fecha a las 6 (Fondo coincidente o blanco) */
+/* Date window at 6 o'clock (Matching background or white) */
 .seaclad-date {
     /* Centrado en la parte inferior (Las 6) */
     bottom: 6px; top: auto; right: auto; left: 50%; transform: translateX(-50%); 
@@ -514,7 +514,7 @@
 }
 .watch-case.seaclad .date-number { font-size: 8px; font-weight: 600; color: #f8fafc;}
 
-/* Agujas Esqueleto (Skeleton Hands) */
+/* Skeleton Hands */
 .seaclad-hour { 
     width: 8px; height: 30px; background: transparent; 
     border: 1px solid #cbd5e1; border-top: 10px solid #f8fafc; /* Punta luminosa */
@@ -525,7 +525,7 @@
     border: 1px solid #cbd5e1; border-top: 12px solid #f8fafc; /* Punta luminosa */
     border-radius: 3px 3px 0 0; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.6)); z-index: 5; 
 }
-/* Segundero con punto rojo luminoso (Lollypop tip) */
+/* Seconds hand with luminous red dot (Lollypop tip) */
 .seaclad-second { 
     width: 1.5px; height: 50px; background: #cbd5e1; filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.4)); z-index: 6; 
 }
@@ -543,7 +543,7 @@
     border-radius: 50%; z-index: 1;
 }
 
-/* Corona con "Crown Guards" (Protectores de corona) simulados con sombras */
+/* Crown with "Crown Guards" simulated with shadows */
 .submariner-crown {
     width: 14px; height: 18px; right: -10px; top: 50%; transform: translateY(-50%);
     border-radius: 3px; background: linear-gradient(90deg, #94a3b8, #cbd5e1, #64748b);
@@ -569,7 +569,7 @@
     z-index: 1; overflow: visible; /* Visible para que se vean los dientes fuera */
 }
 
-/* Dientes metálicos del bisel (Restaurados al ::before) */
+/* Metallic bezel teeth (Restored to ::before) */
 .submariner-bezel::before {
     content: ''; position: absolute; 
     border-radius: 50%;
@@ -579,7 +579,7 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.5);
 }
 
-/* NÚMEROS GRABADOS EN EL BISEL (Inyectados vía JS) */
+/* NUMBERS ENGRAVED ON BEZEL (Injected via JS) */
 .gmt-numbers {
     position: absolute; 
     inset: 0; 
@@ -625,7 +625,7 @@
 }
 .gmt-num:nth-child(1) span { font-size: 8px; /* El triángulo de las 12 es un poco más grande */ }
 
-/* Dial Negro Brillante (Maxi Dial) - Aún más pequeño para dar protagonismo al bisel numérico */
+/* Glossy Black Dial (Maxi Dial) - Even smaller to give prominence to the numeric bezel */
 .watch-case.submariner .watch-face.submariner-face {
     position: absolute; inset: 22px; width: 112px; height: 112px;
     background: #0f172a; 
@@ -634,7 +634,7 @@
     z-index: 2; margin: auto; top: 0; bottom: 0; left: 0; right: 0; overflow: hidden;
 }
 
-/* Marcadores ajustados al nuevo radio de 112px */
+/* Markers adjusted to new 112px radius */
 .watch-case.submariner .hour-marker {
     position: absolute; left: 50%; width: 8px; height: 8px; background: #f8fafc;
     border-radius: 50%; top: 3px; 
@@ -642,7 +642,7 @@
     border: 1px solid #cbd5e1; z-index: 3; box-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
 
-/* Dial Negro Brillante (Maxi Dial) */
+/* Glossy Black Dial (Maxi Dial) */
 .watch-case.submariner .watch-face.submariner-face {
     position: absolute; inset: 16px; width: 128px; height: 128px;
     background: #0f172a; 
@@ -651,13 +651,13 @@
     z-index: 2; margin: auto; top: 0; bottom: 0; left: 0; right: 0; overflow: hidden;
 }
 
-/* Marcadores (Bordes de Oro Blanco simulados con #cbd5e1) */
+/* Markers (White Gold edges simulated with #cbd5e1) */
 .watch-case.submariner .hour-marker {
     position: absolute; left: 50%; width: 10px; height: 10px; background: #f8fafc;
     border-radius: 50%; top: 3px; transform-origin: center 61px;
     border: 1px solid #cbd5e1; z-index: 3; box-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
-/* Triángulo a las 12 */
+/* Triangle at 12 o'clock */
 .watch-case.submariner .hour-marker:nth-child(1) {
     width: 14px; height: 16px; background: #f8fafc;
     clip-path: polygon(50% 100%, 0 0, 100% 0);
@@ -666,13 +666,13 @@
     filter: drop-shadow(0px -1px 0px #cbd5e1) drop-shadow(1px 0px 0px #cbd5e1) drop-shadow(-1px 0px 0px #cbd5e1);
     border: 1px solid #cbd5e1;
 }
-/* Rectángulos a las 6 y 9 */
+/* Rectangles at 6 and 9 */
 .watch-case.submariner .hour-marker:nth-child(7),
 .watch-case.submariner .hour-marker:nth-child(10) {
     width: 7px; height: 14px; border-radius: 2px; top: 2px; background: #f8fafc;
 }
 
-/* Tipografía de Lujo (Layout estilo Rolex) */
+/* Luxury Typography (Rolex-style Layout) */
 .submariner-brand { color: #f8fafc; font-size: 7px; top: 20%; font-weight: 900; letter-spacing: 1px; z-index: 3;}
 .submariner-oyster { position: absolute; left: 50%; transform: translateX(-50%); color: #f8fafc; font-size: 3.5px; top: 29%; font-weight: 700; letter-spacing: 0.5px; z-index: 3; text-align: center;}
 .submariner-model {top: 27.5% !important; color: #f8fafc; font-size: 3.5px; bottom: 30%; font-weight: 600; letter-spacing: 1px; z-index: 3;}
@@ -694,14 +694,14 @@
     font-size: 5px;
 }
 
-/* Fecha y Lente Cyclops */
+/* Date and Cyclops Lens */
 .submariner-date {
     right: 5px; width: 18px; height: 14px; border-radius: 1px; background: #f8fafc;
     border: none; z-index: 3; box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
 }
 .watch-case.submariner .date-number { font-size: 10px; font-weight: 800; color: #0f172a; font-family: 'Helvetica Neue', Arial, sans-serif;}
 
-/* La burbuja de cristal Cyclops (Independiente del motor solar) */
+/* The Cyclops crystal bubble (Independent of solar engine) */
 .submariner-cyclops {
     position: absolute; right: 2px; 
     transform: translateX(-67.5%) !important;
@@ -713,7 +713,7 @@
     backdrop-filter: blur(0.5px);
 }
 
-/* Agujas */
+/* Hands */
 .submariner-hour {
     width: 4px; 
     height: 26px; 
@@ -723,7 +723,7 @@
     z-index: 4; 
     filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5));
 }
-/* Relleno inferior de la aguja horaria */
+/* Lower fill of the hour hand */
 .submariner-hour::after {
     content: ''; 
     position: absolute; 
@@ -735,7 +735,7 @@
     transform: translateX(-50%);
 }
 
-/* MAGIA CSS: La Estrella Mercedes dibujada matemáticamente */
+/* CSS MAGIC: The Mercedes Star drawn mathematically */
 .mercedes-circle {
     position: absolute; width: 14px; height: 14px; border: 1.5px solid #cbd5e1;
     border-radius: 50%; 
@@ -754,7 +754,7 @@
     box-shadow: inset 0 0 1px rgba(0,0,0,0.5);
 }
 
-/* Aguja minutera (Sword-like) */
+/* Minute hand (Sword-like) */
 .submariner-minute {
     width: 4px;
     height: 56px;
@@ -792,7 +792,7 @@
     content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%;
     background: #f8fafc; border: 1.5px solid #cbd5e1; top: 8px; left: 50%; transform: translateX(-50%);
 }
-/* Contrapeso trasero del segundero */
+/* Rear counterweight of seconds hand */
 .submariner-second::after {
     content: ''; position: absolute; width: 3px; height: 12px; background: #cbd5e1;
     bottom: -12px; left: 50%; transform: translateX(-50%); border-radius: 1.5px;
@@ -807,14 +807,14 @@
     border-radius: 50%; z-index: 1;
 }
 
-/* Corona Clásica (Más elegante y acanalada) */
+/* Classic Crown (More elegant and fluted) */
 .gs-crown {
     width: 10px; height: 16px; right: -6px; top: 50%; transform: translateY(-50%);
     border-radius: 2px; background: repeating-linear-gradient(to bottom, #94a3b8 0px, #f8fafc 1px, #64748b 2px);
     box-shadow: 2px 2px 4px rgba(0,0,0,0.3); z-index: -1;
 }
 
-/* Bisel liso con simulación de Pulido Zaratsu (espejo extremo) */
+/* Smooth bezel with Zaratsu Polish simulation (extreme mirror) */
 .gs-bezel {
     position: absolute; inset: 2px; border-radius: 50%;
     /* Gradiente cónico de alto contraste luz/sombra para simular pulido a mano */
@@ -826,7 +826,7 @@
     z-index: 1;
 }
 
-/* Dial texturizado (Color Plata/Blanco Nieve) */
+/* Textured dial (Silver/Snow White color) */
 .watch-case.grandseiko .watch-face.gs-face {
     position: absolute; 
     inset: 8px; 
@@ -841,7 +841,7 @@
     overflow: hidden;
 }
 
-/* Micro-textura radial simulando papel de arroz o el dial Mt. Iwate */
+/* Radial micro-texture simulating rice paper or Mt. Iwate dial */
 .gs-texture {
     position: absolute; inset: 0;
     background: repeating-radial-gradient(
@@ -852,7 +852,7 @@
     z-index: 1; pointer-events: none;
 }
 
-/* Marcadores Facetados (Mitad luz, mitad sombra) */
+/* Faceted Markers (Half light, half shadow) */
 .watch-case.grandseiko .hour-marker {
     position: absolute; left: 50%; width: 4px; height: 14px; 
     /* El gradiente simula la forma piramidal del índice captando la luz */
@@ -860,13 +860,13 @@
     border-radius: 0; top: 4px; transform-origin: center 66px; 
     z-index: 3; box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
 }
-/* Doble Marcador Facetado masivo a las 12 */
+/* Massive double faceted marker at 12 o'clock */
 .watch-case.grandseiko .hour-marker:nth-child(1) {
     width: 8px; height: 16px; top: 3px;
     background: linear-gradient(to right, #ffffff 50%, #94a3b8 50%, #94a3b8 100%, #ffffff 100%, #ffffff 50%, #94a3b8 50%);
 }
 
-/* Tipografía Elegante GS */
+/* Elegant GS Typography */
 .gs-brand { color: #FBFAF2 ; font-family: 'Times New Roman', serif; font-size: 10px; top: 22%; font-weight: bold; z-index: 3; text-align: center; line-height: 1.1;}
 
 .gs-sub { 
@@ -892,7 +892,7 @@
     color: rgb(218, 64, 64);
 }
 
-/* Fecha con marco metálico pulido */
+/* Date with polished metal frame */
 .gs-date {
     right: 8px; width: 16px; height: 12px; border-radius: 1px; background: #ffffff;
     /* Simula un marco metálico aplicado a mano */
@@ -901,7 +901,7 @@
 }
 .watch-case.grandseiko .date-number { font-size: 8px; font-weight: bold; font-family: 'Courier New', monospace; color: #0f172a; }
 
-/* Agujas Dauphine Facetadas (Pura Matemática CSS) */
+/* Faceted Dauphine Hands (Pure CSS Mathematics) */
 .gs-hour {
     width: 8px; 
     height: 44px; 
@@ -919,7 +919,7 @@
     z-index: 5; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.4));
 }
 
-/* Segundero Termo-Azulado (Heat-blued steel) */
+/* Heat-blued seconds hand (Heat-blued steel) */
 .gs-second { 
     width: 1px; 
     height: 64px; 
@@ -927,13 +927,13 @@
     z-index: 6; 
     box-shadow: 1px 1px 1px rgba(0,0,0,0.3);
 }
-/* El largo contrapeso azul de la aguja trasera */
+/* The long blue counterweight of the rear hand */
 .gs-second::after { 
     content: ''; position: absolute; width: 2px; height: 16px; background: #0284c7; 
     bottom: -16px; left: 50%; transform: translateX(-50%); border-radius: 1px;
 }
 
-/* Tapa central pulida */
+/* Polished center cap */
 .gs-pin { background: radial-gradient(circle, #f8fafc 0%, #94a3b8 100%); width: 4px; height: 4px; z-index: 7; }
 
 /* =========================================================
@@ -941,103 +941,219 @@
    ========================================================= */
 .watch-case.casiotron { 
     background: linear-gradient(145deg, #f1f5f9 0%, #cbd5e1 50%, #94a3b8 100%); 
-    border-radius: 50%; /* Adaptado a un círculo perfecto */
-    z-index: revert;
-    transform: none !important;
+    border-radius: 50%; 
+    z-index: 1;
+    /* FIX PARA EL BUG 3D: Obliga al navegador a respetar la profundidad física de los elementos hijos */
+    transform-style: preserve-3d; 
 }
 
-/* Botones Físicos (Sistema de Coordenadas Polares) */
+/* Physical Buttons (Polar Coordinates System) */
 .casio-btn {
     position: absolute; 
-    width: 6px; height: 16px; 
+    /* NUEVAS DIMENSIONES: Doble de ancho, casi la mitad de altura */
+    width: 12px; 
+    height: 8px; 
     
-    /* 1. Origen: Colocamos todos los botones exactamente en el centro de la caja (160x160) */
     top: 50%; left: 50%;
-    margin-top: -8px; margin-left: -3px; /* Centrado perfecto sobre su propio eje */
+    margin-top: -4px; margin-left: -6px; /* Re-centrado a sus nuevas medidas */
     
     background: linear-gradient(90deg, #94a3b8, #f8fafc, #64748b);
     border-radius: 2px; 
-    z-index: -10; 
-    cursor: grabbing; 
+    z-index: -1; 
+    cursor: pointer; 
     box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
     
-    /* 2. Variables Matemáticas */
     --angle: 0deg;
-    /* El radio del reloj es 80px. Usamos 78px para que 2px queden siempre "hundidos" en la caja */
-    --radius: 78px; 
+    
+    /* NUEVO RADIO: 
+       Como el botón ahora es más cortito (8px), recalculamos el radio a 83px. 
+       Esto hace que su base quede 1px por dentro del reloj y sobresalga 7px. 
+    */
+    --radius: 83px; 
     --btn-push: 0px;
     
-    /* 3. Magia CSS: Rotamos al ángulo deseado y luego empujamos radialmente hacia afuera */
-    transform: rotate(var(--angle)) translateY(calc(-1 * (var(--radius) - var(--btn-push))));
+    /* FIX PARA EL BUG 3D: Añadimos 'translateZ(-1px)' al final para empujarlos por detrás de la pantalla */
+    transform: rotate(var(--angle)) translateY(calc(-1 * (var(--radius) - var(--btn-push)))) translateZ(-1px);
     transition: transform 0.1s, box-shadow 0.1s;
 }
 
-/* Posiciones exactas usando grados (0deg = las 12 en punto) */
+/* Exact positions using degrees (0deg = 12 o'clock) */
 .btn-a { --angle: -55deg; }  /* 10 en punto */
 .btn-b { --angle: 55deg; }   /* 2 en punto */
 .btn-c { --angle: -125deg; } /* 8 en punto */
 .btn-d { --angle: 125deg; }  /* 4 en punto */
 
-/* Lógica interactiva: El botón se hunde hacia el centro de forma matemáticamente perfecta */
+/* Interactive logic */
 .casio-btn:active { 
-    --btn-push: 4px; /* Al presionar, se acerca 4px al núcleo */
+    /* Al ser botones más cortos, reducimos el hundimiento a 2px para que no desaparezcan dentro de la caja */
+    --btn-push: 2px; 
     box-shadow: 0px 1px 2px rgba(0,0,0,0.4); 
 }
 
-/* Bisel Acanalado (Fluted Bezel) */
+/* Fluted Bezel */
 .casiotron-bezel {
     position: absolute; inset: 6px; border-radius: 50%;
-    background: repeating-conic-gradient(#94a3b8 0 2deg, #f8fafc 2deg 4deg);
+    /* background: repeating-conic-gradient(#94a3b8 0 5deg, #f8fafc 5deg 20deg); */
     box-shadow: inset 0 0 5px rgba(0,0,0,0.6), 0 2px 5px rgba(0,0,0,0.5);
     z-index: 1;
 }
 
-/* Base del Dial Azul Oscuro */
+/* Dark Blue Dial Base */
 .casiotron-dial-container {
-    position: absolute; inset: 16px; border-radius: 50%;
+    position: absolute; 
+    inset: 16px; 
+    border-radius: 50%;
     background: #0a192f; 
-    z-index: 2; overflow: hidden;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,0.9);
+    z-index: 2; 
+    overflow: hidden;
+    
+    /* 1. EL CORTE FÍSICO: Un borde ligeramente más grueso pero translúcido */
+    /* border: 1.5px solid rgba(255, 255, 255, 0.35); */
+    
+    /* 2. LA REFRACCIÓN: 
+       - Primera capa (inset): El brillo fuerte que capta el borde interno del cristal.
+       - Segunda capa (normal): El resplandor que "derrama" la luz sobre el bisel estriado.
+       - Tercera capa (inset oscuro): Profundidad para separar el dial del cristal.
+    */
+    box-shadow: 
+        inset 0 0 5px rgba(255, 255, 255, 0.8), 
+        0 0 3px rgba(255, 255, 255, 0.5),
+        inset 0 5px 10px rgba(0, 0, 0, 0.6);
 }
 
-/* Textura TRN-50 (Líneas verticales azules) */
+/* TRN-50 Texture (Blue vertical lines) */
 .casiotron-dial-pattern {
-    position: absolute; inset: 0;
-    background: repeating-linear-gradient(90deg, #0a192f 0px, #0a192f 4px, #112240 4px, #112240 8px);
+    position: absolute; 
+    inset: 0;
+    background: repeating-linear-gradient(180deg, #0a192f 0px, #0a192f 4px, #112240 4px, #112240 8px);
+    border-radius: 50%;
+    box-shadow: 
+        inset 0 0 2.5px rgba(255, 255, 255, 0.8), 
+        0 0 1.5px rgba(255, 255, 255, 0.5),
+        inset 0 2.5px 5px rgba(0, 0, 0, 0.6);
+
 }
 
-/* Anillo Dorado 50 Aniversario */
+/* Golden 50th Anniversary Ring */
 .casiotron-gold-ring {
-    position: absolute; inset: 14px; border-radius: 50%;
-    border: 1.5px solid #d4af37; /* Oro */
-    box-shadow: inset 0 0 2px rgba(212, 175, 55, 0.5), 0 0 2px rgba(212, 175, 55, 0.5);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: absolute; 
+    inset: 14px; 
+    border-radius: 50%;
+    /* border: 1.5px solid #d4af37; 
+    box-shadow: inset 0 0 2px rgba(212, 175, 55, 0.5), 0 0 2px rgba(212, 175, 55, 0.5); */
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    gap: 0.8rem;
+    bottom: 25%;
 }
 
-/* Tipografía del Logo */
+.casiotron-japan {
+    position: absolute;
+    bottom: 12%;
+    left: 50%;
+    z-index: 99999;
+    transform: translateX(-50%);
+    color: #f8fafc; 
+    font-family: 'Arial', sans-serif; 
+    font-weight: 900; 
+    font-size: 2.5px;
+    letter-spacing: 2.5px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
+}
+
+/* Logo Typography */
 .casiotron-logo {
-    color: #f8fafc; font-family: 'Arial', sans-serif; font-weight: 900; font-size: 7px; letter-spacing: 2.5px;
-    margin-bottom: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); z-index: 3;
+    color: #f8fafc; 
+    font-family: 'Arial', sans-serif; 
+    font-weight: 900; 
+    font-size: 7px; 
+    letter-spacing: 2.5px;
+    margin-bottom: 2px; 
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8); 
+    z-index: 3;
+    position: absolute;
+    bottom: 80%;
 }
 .casiotron-sublogo {
     color: #d4af37; font-family: 'Arial', sans-serif; font-size: 3.5px; font-weight: bold; letter-spacing: 1px;
     margin-bottom: 8px; z-index: 3;
 }
 
-/* Pantalla LCD Digital */
-.casiotron-lcd {
-    width: 65px; height: 28px; 
-    background: #8fa08e; /* Color LCD clásico verdoso */
-    border-radius: 2px;
-    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6), 0 0 0 1px #475569;
-    display: flex; flex-direction: column; justify-content: space-between; padding: 2px 4px;
-    position: relative; transition: background 0.1s, box-shadow 0.1s; z-index: 3;
+.casiotron-model {
+    color: #f8fafc; font-family: 'Arial', sans-serif; 
+    font-size: 6.5px; 
+    font-weight: bold; 
+    letter-spacing: 1px;
+    z-index: 3;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    text-align: center;
+    position: absolute;
+    bottom: -37.5%;
 }
-/* Activación de Luz LED (Super Illuminator) */
+
+/* LCD Metal Frame (New inner bezel) */
+.casiotron-lcd-frame {
+    width: 78px; 
+    height: 55px;
+    background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%);
+    border-radius: 4px;
+    padding: 2.5px; /* El grosor del marco plateado */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -1px 2px rgba(0,0,0,0.4);
+    z-index: 3;
+    position: absolute;
+    bottom: 3.25%;
+}
+
+/* Realistic Digital LCD Screen */
+.casiotron-lcd {
+    width: 100%; 
+    height: 100%; 
+    background: #9db09f; /* Color exacto del LCD del TRN-50 */
+    border-radius: 4px;
+    box-shadow: inset 1.5px 1.5px 3px rgba(0,0,0,0.5), inset -1px -1px 2px rgba(255,255,255,0.3);
+    display: flex; flex-direction: column; justify-content: space-between; 
+    position: relative; transition: background 0.1s, box-shadow 0.1s;
+}
+
+/* LED Light Activation (Super Illuminator) */
 .casiotron-lcd.illuminated {
-    background: #4ade80; /* LED Verde de Casio Moderno */
+    background: #4ade80; 
     box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2), 0 0 15px #4ade80;
 }
+
+/* --- Internal LCD Layout in 3 Strips --- */
+
+/* 1. Top Strip */
+.casio-top-row {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    height: 35%; padding: 0 4px;
+    border-bottom: 0.5px solid rgba(0,0,0,0.08); /* Línea divisoria tenue */
+}
+.casio-ps { font-family: 'Arial', sans-serif; font-size: 3px; font-weight: 900; color: #111827; font-style: italic; margin-bottom: 2px;}
+.casio-date-matrix { font-family: 'Courier New', monospace; font-size: 8px; font-weight: 900; color: #111827; letter-spacing: 0.5px;}
+
+/* 2. Middle Strip (Indicators) */
+.casio-indicators-row {
+    display: flex; justify-content: space-between; align-items: center;
+    height: 15%; padding: 0 3px;
+    font-family: 'Arial', sans-serif; font-size: 2px; font-weight: 900;
+    color: rgba(17, 24, 39, 0.2); /* Letras apagadas (fantasmas) por defecto */
+    border-bottom: 0.5px solid rgba(0,0,0,0.08);
+}
+.casio-indicators-row span.active { color: #111827; } /* Clase para "encender" un indicador */
+.casio-red { color: rgba(220, 38, 38, 0.3); }
+.casio-red.active { color: #dc2626; }
+
+/* 3. Franja Inferior (Hora Principal) */
+.casio-bottom-row {
+    display: flex; align-items: baseline; justify-content: center;
+    height: 50%; padding: 0 2px; gap: 1px;
+}
+.casio-pm { font-family: 'Arial', sans-serif; font-size: 3.5px; font-weight: 900; color: #111827; margin-right: 1px; margin-top: 2px; align-self: flex-start;}
+.casio-main { font-family: 'Courier New', monospace; font-size: 15px; font-weight: 900; color: #111827; letter-spacing: -1px; line-height: 1;}
+.casio-sec { font-family: 'Courier New', monospace; font-size: 9px; font-weight: 900; color: #111827; margin-left: 2px;}
 
 /* Layout Interno del LCD */
 .casio-header {

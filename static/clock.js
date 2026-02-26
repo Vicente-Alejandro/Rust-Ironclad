@@ -104,29 +104,42 @@ const ClockModule = (function() {
                 <div class="casio-btn btn-a" data-btn="A"></div> <div class="casio-btn btn-b" data-btn="B"></div> <div class="casio-btn btn-c" data-btn="C"></div> <div class="casio-btn btn-d" data-btn="D"></div> <div class="casiotron-bezel"></div>
                 <div class="casiotron-dial-container">
                     <div class="casiotron-dial-pattern"></div>
-                    <div class="casiotron-gold-ring">
-                        <div class="casiotron-logo">CASIOTRON</div>
-                        <div class="casiotron-sublogo">TRN-50</div>
-                        
-                        <div class="casiotron-lcd" id="casiotron-lcd">
-                            <div class="casio-header" id="casio-header">MO 25</div>
-                            <div class="casio-main-row">
-                                <span class="casio-main" id="casio-main">10:58</span>
-                                <span class="casio-sec" id="casio-sec">34</span>
+                        <div class="casiotron-gold-ring">
+
+                            <div class="casiotron-logo">CASIO</div>
+
+                            <div class="casiotron-lcd-frame">
+                                <div class="casiotron-lcd" id="casiotron-lcd">
+                                    <div class="casio-top-row">
+                                        <span class="casio-ps">PS</span>
+                                        <span class="casio-date-matrix" id="casio-header">SU 6.30</span>
+                                    </div>
+                                    <div class="casio-indicators-row">
+                                        <span>LT</span><span id="casio-ind-1" class="active">RCVD</span><span>SNZ</span><span>ALM</span><span>SIG</span><span>MUTE</span><span class="casio-red">LOW</span>
+                                    </div>
+                                    <div class="casio-bottom-row">
+                                        <span class="casio-pm" id="casio-pm">P</span>
+                                        <span class="casio-main" id="casio-main">10:58</span>
+                                        <span class="casio-sec" id="casio-sec">50</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="casio-indicators">
-                                <span id="casio-ind-1">RCVD</span>
-                                <span id="casio-ind-2">TOUGH SOLAR</span>
+                            <div class="casiotron-model">
+                                CASIOTRON
+                                <div class="casiotron-sublogo">TRN-50 ANNIVERSARY</div>
+                                <br>
                             </div>
                         </div>
                     </div>
+                    <span class="casiotron-japan">JAPAN</span>
                 </div>
                 <div class="glass-reflection casiotron-glass"></div>
             `,
             onMount: function() {
                 // Mapeo lógico de botones físicos
                 document.querySelectorAll('.casio-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('pointerdown', (e) => {
+                        e.preventDefault(); // Evita comportamientos fantasma en móviles
                         e.stopPropagation();
                         const id = e.target.dataset.btn;
                         
@@ -515,12 +528,21 @@ const ClockModule = (function() {
             else lcdEl.classList.remove('illuminated');
 
             if (casiotronState.mode === 0) {
-                // MODE: TIME
+                // MODO: TIME
                 const days = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-                headerEl.textContent = `${days[now.getDay()]} ${String(now.getDate()).padStart(2, '0')}`;
-                mainEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                const isPM = now.getHours() >= 12;
+                const displayHour = now.getHours() % 12 || 12; // Formato 12 hrs
+
+                // Mostrar u ocultar la 'P'
+                document.getElementById('casio-pm').style.visibility = isPM ? 'visible' : 'hidden';
+
+                // Fecha formato 6.30 (Mes.Día)
+                headerEl.textContent = `${days[now.getDay()]} ${now.getMonth() + 1}.${String(now.getDate()).padStart(2, '0')}`;
+
+                mainEl.textContent = `${String(displayHour).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                 secEl.textContent = String(now.getSeconds()).padStart(2, '0');
-                ind1El.textContent = "RCVD"; // Simulates radio signal reception
+                ind1El.textContent = "RCVD";
+                ind1El.classList.add('active');
             } else if (casiotronState.mode === 1) {
                 // MODE: WORLD TIME (Simulating Tokyo +9)
                 headerEl.textContent = "WT TYO";
