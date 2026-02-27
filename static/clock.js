@@ -537,6 +537,129 @@ const ClockModule = (function() {
             isDigital: true, hideMarkers: [],
             template: `<div class="w800-bezel"><div class="w800-brand">IRONCLAD</div><div class="w800-illuminator">ILLUMINATOR</div><div class="w800-wr">WATER 100M RESIST</div><div class="w800-lcd"><div class="lcd-header"><span id="lcd-year">2026</span><span id="lcd-date">10-25</span><span id="lcd-day">MON</span></div><div class="lcd-time-row"><span id="lcd-hour">10</span><span class="lcd-colon">:</span><span id="lcd-minute">58</span><span id="lcd-second">34</span></div></div><div class="glass-reflection digital-glass"></div></div>`
         },
+        touchtron: {
+            desc: 'Vintage LED Quartz 39mm<br>Touch Case to Display Time',
+            isDigital: true,
+            hideMarkers: [],
+            template: `
+                <div class="touchtron-brand">ORIENT</div>
+                <div class="touchtron-screen">
+                    <div class="touchtron-led" id="touchtron-display">88:88</div>
+                </div>
+                <div class="touchtron-model">TOUCHTRON</div>
+                <div class="glass-reflection touchtron-glass"></div>
+            `,
+            onMount: function() {
+                const watchCase = document.getElementById('watch-case');
+                const timeDisplay = document.getElementById('touchtron-display');
+                let timeoutId;
+                let isLEDActive = false;
+
+                // Capture the click on the watch case, not just the screen, to mimic the real watch behavior
+                watchCase.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    
+                    const now = new Date();
+                    const hours = String(now.getHours()).padStart(2, '0');
+                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                    
+                    timeDisplay.textContent = `${hours}:${minutes}`;
+                    timeDisplay.classList.add('active');
+                    isLEDActive = true;
+
+                    if (timeoutId) clearTimeout(timeoutId);
+
+                    // Battery saving: auto-off after 2.5s, mimicking real LED watches
+                    timeoutId = setTimeout(() => {
+                        timeDisplay.classList.remove('active');
+                        isLEDActive = false;
+                    }, 2500);
+                });
+
+                // Touch support: same logic as mouse but with touch events. We use 'passive: true' to allow scrolling on mobile without delay.
+                watchCase.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    const now = new Date();
+                    const hours = String(now.getHours()).padStart(2, '0');
+                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                    
+                    timeDisplay.textContent = `${hours}:${minutes}`;
+                    timeDisplay.classList.add('active');
+                    isLEDActive = true;
+
+                    if (timeoutId) clearTimeout(timeoutId);
+
+                    timeoutId = setTimeout(() => {
+                        timeDisplay.classList.remove('active');
+                        isLEDActive = false;
+                    }, 2500);
+                }, { passive: true });
+            }
+        },
+        hamilton: {
+            desc: 'Swiss Field Auto 21600 BPH<br>Caliber H-10 (80h Power Reserve)',
+            isDigital: false,
+            bph: 21600, // Calibre H-10 
+            hideMarkers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 
+            template: `
+                <div class="watch-crown hamilton-crown"></div>
+                <div class="hamilton-bezel"></div>
+                
+                <div class="watch-face hamilton-face">
+                    <div id="hamilton-numerals"></div>
+                    
+                    <div class="watch-brand hamilton-brand">HAMILTON</div>
+                    <div class="watch-specs hamilton-specs">KHAKI<br>AUTOMATIC</div>
+                    
+                    <div class="date-window hamilton-date"><span class="date-number" id="date-display">--</span></div>
+                    
+                    <div class="hands-container">
+                        <div class="hand-hour hamilton-hour" id="hand-hour"></div>
+                        <div class="hand-minute hamilton-minute" id="hand-minute"></div>
+                        <div class="hand-second hamilton-second" id="hand-second"></div>
+                        <div class="center-pin hamilton-pin"></div>
+                    </div>
+                </div>
+                <div class="glass-reflection"></div>
+            `,
+            onMount: function() {
+                const container = document.getElementById('hamilton-numerals');
+                if (!container) return;
+                container.innerHTML = '';
+                
+                // 1. Minutes Track (Ticks)
+                for(let i = 0; i < 60; i++) {
+                    const angle = i * 6;
+                    const minDiv = document.createElement('div');
+                    minDiv.className = (i % 5 === 0) ? 'khaki-min-tick major' : 'khaki-min-tick';
+                    minDiv.style.transform = `rotate(${angle}deg)`;
+                    container.appendChild(minDiv);
+                }
+
+                // 2. Military Numbers (1-12 Outer, 13-24 Inner)
+                for (let i = 1; i <= 12; i++) {
+                    if (i === 3) continue; 
+                    const angle = i * 30;
+                    
+                    // Outer 1-12
+                    const outerDiv = document.createElement('div');
+                    outerDiv.className = 'khaki-num-outer';
+                    outerDiv.style.transform = `rotate(${angle}deg)`;
+                    outerDiv.innerHTML = `<span style="transform: rotate(-${angle}deg)">${i}</span>`;
+                    container.appendChild(outerDiv);
+
+                    // Inner 13-24 
+                    const innerDiv = document.createElement('div');
+                    innerDiv.className = 'khaki-num-inner';
+                    innerDiv.style.transform = `rotate(${angle}deg)`;
+                    // The 12 o'clock position shows 24
+                    const militaryNum = (i === 12) ? 24 : i + 12;
+                    // The 15 (3 o'clock position) is skipped in the loop above, but we still calculate its military number for consistency
+                    innerDiv.innerHTML = `<span style="transform: rotate(-${angle}deg)">${militaryNum}</span>`;
+                    container.appendChild(innerDiv);
+                }
+            }
+        },
         databank: {
             desc: 'Calculator Watch Module<br>Resin Case with Keypad',
             isDigital: true, hideMarkers: [],
