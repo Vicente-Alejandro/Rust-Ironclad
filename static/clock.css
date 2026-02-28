@@ -602,7 +602,7 @@
     
     background: linear-gradient(to bottom, #000000 42%, #0000FF 56%);
     
-    border: 3px solid #cbd5e1;
+    /* border: 3px solid #cbd5e1; */
     box-shadow: inset 0 0 4px rgba(255,255,255,0.4), 0 2px 4px rgba(0,0,0,0.5);
     z-index: 1; overflow: visible; 
 }
@@ -812,7 +812,7 @@
 .submariner-bezel {    
     cursor: grab;
     transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-    user-select: none;
+    /* user-select: none; */
 }
 .submariner-bezel:active {
     cursor: grabbing;
