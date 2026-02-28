@@ -1053,9 +1053,26 @@ const ClockModule = (function() {
             if(dateDisplay) dateDisplay.textContent = now.getDate();
         }
         
-        document.getElementById('digital-time').textContent = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        // document.getElementById('digital-time').textContent = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         requestRef = requestAnimationFrame(updateLoop);
     }
-    
-    return { init };
+
+    function pause() {
+        if (requestRef) {
+            cancelAnimationFrame(requestRef);
+            requestRef = null;
+        }
+    }
+
+    function resume() {
+        if (!requestRef) {
+            requestRef = requestAnimationFrame(updateLoop);
+        }
+    }
+
+    return { 
+        init,
+        pause,
+        resume
+    };
 })();

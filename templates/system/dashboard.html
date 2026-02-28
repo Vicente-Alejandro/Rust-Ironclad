@@ -91,6 +91,45 @@
         .countdown-display.paused { color: #64748b; background: #1e293b; }
         .timestamp { font-size: 0.75rem; color: #64748b; margin-top: 1rem; text-align: center; }
 
+        /* =========================================================
+           GLOBAL CONTROL PANEL
+           ========================================================= */
+        .global-controls {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .global-control-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .global-control-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .left-panel, .right-panel {
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
+        }
+
+        .left-panel.hidden, .right-panel.hidden {
+            opacity: 0;
+            display: none;
+            pointer-events: none;
+            transform: translateY(-10px); 
+        }
+
         @media (max-width: 1200px) {
             .left-panel, .right-panel { position: relative; top: auto; left: auto; right: auto; margin-bottom: 1rem; width: 100%; max-width: 400px; margin: 0 auto 1rem auto; }
             body { padding-top: 1rem; }
@@ -129,7 +168,8 @@
                 </div>
             </div>
             
-            <div class="digital-time" id="digital-time">00:00:00</div>
+            <!-- If needed -->
+            <!-- <div class="digital-time" id="digital-time">00:00:00</div> -->
         </div>
     </div>
 
@@ -187,6 +227,23 @@
             <p class="subtitle">Rust Ironclad Framework - Real-time Monitoring</p>
         </header>
 
+        <div class="global-controls">
+            <div class="global-control-item">
+                <span class="global-control-label">🕒 Clock Module</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-clock-module" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="global-control-item">
+                <span class="global-control-label">⚡ Live Updates Panel</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-updates-module" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
         <div class="grid">
             <div class="card">
                 <div class="card-header">
@@ -328,6 +385,60 @@
                 // Security rule: Never save anything < 0.25s
                 val = Math.max(0.25, val); 
                 localStorage.setItem('ironclad_custom_value', val);
+            }
+        }
+
+        const globalControls = {
+            clockSwitch: document.getElementById('toggle-clock-module'),
+            updatesSwitch: document.getElementById('toggle-updates-module'),
+            leftPanel: document.querySelector('.left-panel'),
+            rightPanel: document.querySelector('.right-panel')
+        };
+
+        function initGlobalControls() {
+            const clockState = localStorage.getItem('ironclad_show_clock') !== 'false';
+            const updatesState = localStorage.getItem('ironclad_show_updates') !== 'false';
+
+            globalControls.clockSwitch.checked = clockState;
+            globalControls.updatesSwitch.checked = updatesState;
+
+            applyModuleVisibility();
+
+            // Event Listeners
+            globalControls.clockSwitch.addEventListener('change', (e) => {
+                localStorage.setItem('ironclad_show_clock', e.target.checked);
+                applyModuleVisibility();
+            });
+
+            globalControls.updatesSwitch.addEventListener('change', (e) => {
+                localStorage.setItem('ironclad_show_updates', e.target.checked);
+                applyModuleVisibility();
+            });
+        }
+
+        function applyModuleVisibility() {
+            // Control del Panel del Reloj
+            if (globalControls.clockSwitch.checked) {
+                globalControls.leftPanel.classList.remove('hidden');
+                
+                // Validación segura antes de reanudar
+                if (typeof ClockModule !== 'undefined' && typeof ClockModule.resume === 'function') {
+                    ClockModule.resume();
+                }
+            } else {
+                globalControls.leftPanel.classList.add('hidden');
+                
+                // Validación segura antes de pausar
+                if (typeof ClockModule !== 'undefined' && typeof ClockModule.pause === 'function') {
+                    ClockModule.pause();
+                }
+            }
+
+            // Control del Panel de Updates
+            if (globalControls.updatesSwitch.checked) {
+                globalControls.rightPanel.classList.remove('hidden');
+            } else {
+                globalControls.rightPanel.classList.add('hidden');
             }
         }
 
@@ -544,12 +655,13 @@
 
         // Initialize Application
         document.addEventListener('DOMContentLoaded', () => {
-            // Inicializar el reloj si el script cargó correctamente desde /static
+            // Init the clock module if it loaded correctly from /static
             if (typeof ClockModule !== 'undefined') {
                 ClockModule.init();
             } else {
-                console.error("El módulo clock.js no se cargó. Verifica que Actix esté sirviendo archivos estáticos.");
+                console.error("The clock module js in /static/clock.js is not available or is not loaded correctly.");
             }
+            initGlobalControls();
             initDashboard();
         });
     </script>
