@@ -1,5 +1,5 @@
 use actix_web::web;
-use actix_files::Files; // Importamos el módulo de archivos estáticos
+use actix_files::Files; 
 use crate::infrastructure::http::{AuthController, UserController, TestItemController, HealthController};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -11,6 +11,16 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     // 2. API routes configuration 
     cfg.service(
         web::scope("/api")
+            .service(
+                web::scope("/docs")
+                    .route("", web::get().to(|| async {
+                        actix_web::HttpResponse::Ok().json(serde_json::json!({
+                            "message": "API Documentation is not implemented yet. Please check back later.",
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                            "hint": "In the future, this endpoint will provide interactive API documentation using Swagger or similar tools."
+                        }))
+                    }))
+            )
             .service(
                 web::scope("/auth")
                     .route("/register", web::post().to(AuthController::register))

@@ -2,53 +2,31 @@
 // Application Modules
 // ============================================
 
-// Domain Layer - Pure business logic
 mod domain;
-
-// Application Layer - Use cases and services
 mod application;
-
-// Infrastructure Layer - Technical details
 mod infrastructure;
-
-// Interfaces / Repositories - Contracts
 mod interfaces;
-
-// Shared utilities - Cross-cutting utilities
 mod shared;
-
-// Configuration
 mod config;
-
-// Error handling
 mod errors;
-
-// Utilities
 mod utils;
-
-// CLI Tools
 mod cli;
-
-// Database (legacy - initialization only)
 mod db;
-
-// Middleware
 mod middleware;
-
-// Routes configuration
 mod routes;
+mod app_state;  // 🆕
 
 use middleware::MaintenanceMode;
 use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use tracing_subscriber;
 use tracing_actix_web::TracingLogger;
-use std::sync::Arc;
 
 use config::AppConfig;
-use infrastructure::{PostgresUserRepository, PostgresTestItemRepository};
-use application::{AuthService, UserService, TestItemService};
-use interfaces::{UserRepository, TestItemRepository};
+use app_state::AppState;  // 🆕
+
+#[macro_use]
+mod macros;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -57,7 +35,7 @@ async fn main() -> std::io::Result<()> {
     // ============================================
     let app_config = AppConfig::from_env().expect("Failed to load config");
 
-    // Configure logging - Clean, minimal output with bulletproof visibility
+    // Configure logging
     tracing_subscriber::fmt()
         .without_time()
         .with_target(false)
@@ -66,8 +44,6 @@ async fn main() -> std::io::Result<()> {
         .with_file(false)
         .with_line_number(false)
         .with_env_filter(
-            // SOLUTION: "info" as the global baseline, "warn" to silence Actix startup noise,
-            // and "debug" exclusively for your project's submodules.
             tracing_subscriber::EnvFilter::new("info,actix_server=warn,ironclads=debug")
         )
         .init();
@@ -94,34 +70,9 @@ async fn main() -> std::io::Result<()> {
     }
 
     // ============================================
-    // Dependency Injection (DI Container)
+    // 🎯 Initialize AppState Container
     // ============================================
-    
-    // Repositories (Interfaces)
-    let user_repository: Arc<dyn UserRepository> =
-        Arc::new(PostgresUserRepository::new(pg_pool.clone()));
-
-    // Services (Application Layer)
-    let auth_service = Arc::new(AuthService::new(
-        user_repository.clone(),
-        Arc::new(app_config.clone()),
-    ));
-    
-    let user_service = Arc::new(UserService::new(
-        user_repository.clone(),
-        Arc::new(app_config.clone()),  
-    ));
-
-    let test_item_repository: Arc<dyn TestItemRepository> =
-        Arc::new(PostgresTestItemRepository::new(pg_pool.clone()));
-    let test_item_service = Arc::new(TestItemService::new(test_item_repository));
-
-    // Prepare data for Actix
-    let config_data = web::Data::new(app_config.clone());
-    let auth_service_data = web::Data::new(auth_service);
-    let user_service_data = web::Data::new(user_service);
-    let test_item_service_data = web::Data::new(test_item_service);
-    let pool_data = web::Data::new(pg_pool);
+    let app_state = AppState::new(app_config.clone(), pg_pool);
 
     let address = format!("{}:{}", app_config.server.host, app_config.server.port);
 
@@ -132,16 +83,23 @@ async fn main() -> std::io::Result<()> {
     validate_security_config(&app_config);
 
     // ============================================
-    // Start HTTP Server
+    // 🎯 Start HTTP Server
     // ============================================
     HttpServer::new(move || {
-        App::new()
-            .app_data(config_data.clone())
-            .app_data(pool_data.clone())
-            .app_data(auth_service_data.clone())
-            .app_data(user_service_data.clone())
-            .app_data(test_item_service_data.clone())
-            .wrap(MaintenanceMode)
+        let app = App::new();
+        
+        // Register services and app state macro (You must import them in app_state.rs)
+        let app = register_services!(
+            app,
+            app_state,
+            config,
+            pool,
+            auth_service,
+            user_service,
+            test_item_service
+        );
+        
+        app.wrap(MaintenanceMode)
             .wrap(
                 Cors::default()
                     .allow_any_origin()
@@ -164,7 +122,6 @@ async fn handle_not_found() -> actix_web::HttpResponse {
         "error": "Not Found",
         "message": "The requested endpoint does not exist",
         "timestamp": chrono::Utc::now().to_rfc3339(),
-        // "hint": "Check the API documentation at GET /api/docs"
     }))
 }
 
