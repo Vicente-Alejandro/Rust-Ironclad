@@ -1,7 +1,3 @@
-// ============================================
-// Application Modules
-// ============================================
-
 mod domain;
 mod application;
 mod infrastructure;
@@ -14,7 +10,7 @@ mod cli;
 mod db;
 mod middleware;
 mod routes;
-mod app_state;  // 🆕
+mod app_state;
 
 use middleware::MaintenanceMode;
 use actix_web::{web, App, HttpServer};
@@ -22,8 +18,9 @@ use actix_cors::Cors;
 use tracing_subscriber;
 use tracing_actix_web::TracingLogger;
 
-use config::AppConfig;
-use app_state::AppState;  // 🆕
+use config::{AppConfig, validate_security_config};  
+use app_state::AppState;
+use infrastructure::http::handle_not_found;  
 
 #[macro_use]
 mod macros;
@@ -70,7 +67,12 @@ async fn main() -> std::io::Result<()> {
     }
 
     // ============================================
-    // 🎯 Initialize AppState Container
+    // Validate Security Configuration
+    // ============================================
+    validate_security_config(&app_config);  // Valide bcrypt cost and JWT settings
+
+    // ============================================
+    // Initialize AppState Container
     // ============================================
     let app_state = AppState::new(app_config.clone(), pg_pool);
 
@@ -80,16 +82,14 @@ async fn main() -> std::io::Result<()> {
     tracing::info!("🔗 Documentation: http://{}:{}/api/docs", app_config.server.host, app_config.server.port);
     tracing::info!("");
 
-    validate_security_config(&app_config);
-
     // ============================================
-    // 🎯 Start HTTP Server
+    // Start HTTP Server
     // ============================================
     HttpServer::new(move || {
         let app = App::new();
         
-        // Register services and app state macro (You must import them in app_state.rs)
-        let app = register_services!(
+        // Register services and app state macro 
+         let app = register_services!(
             app,
             app_state,
             config,
@@ -99,7 +99,7 @@ async fn main() -> std::io::Result<()> {
             test_item_service
         );
         
-        app.wrap(MaintenanceMode)
+        app.wrap(MaintenanceMode) // Middleware for maintenance mode (NOTE: This should be before CORS to ensure it can handle maintenance responses properly)
             .wrap(
                 Cors::default()
                     .allow_any_origin()
@@ -114,85 +114,4 @@ async fn main() -> std::io::Result<()> {
     .bind(&address)?
     .run()
     .await
-}
-
-/// Handler for not found routes
-async fn handle_not_found() -> actix_web::HttpResponse {
-    actix_web::HttpResponse::NotFound().json(serde_json::json!({
-        "error": "Not Found",
-        "message": "The requested endpoint does not exist",
-        "timestamp": chrono::Utc::now().to_rfc3339(),
-    }))
-}
-
-fn validate_security_config(config: &AppConfig) {
-    if config.bcrypt.cost < 4 {
-        tracing::error!(
-            "🔴 BCRYPT_COST={} is CRITICALLY LOW for security (minimum: 4)", 
-            config.bcrypt.cost
-        );
-    } else if config.bcrypt.cost < 8 {
-        tracing::warn!(
-            "⚠️  BCRYPT_COST={} is LOW for security (recommended: 8+)", 
-            config.bcrypt.cost
-        );
-    }
-
-    match config.server.env.as_str() {
-        "production" => {
-            if config.bcrypt.cost < 10 {
-                tracing::error!(
-                    "🔴 BCRYPT_COST={} is TOO LOW for production (minimum: 10, recommended: 12)", 
-                    config.bcrypt.cost
-                );
-                tracing::error!("   Production deployment blocked for security reasons");
-                std::process::exit(1);  
-            } else if config.bcrypt.cost >= 12 {
-                tracing::info!(
-                    "✅ BCRYPT_COST={} is IDEAL for production", 
-                    config.bcrypt.cost
-                );
-            } else {
-                tracing::warn!(
-                    "⚠️  BCRYPT_COST={} is acceptable for production (recommended: 12)", 
-                    config.bcrypt.cost
-                );
-            }
-
-            if config.jwt.secret.len() < 32 {
-                tracing::error!("🔴 JWT_SECRET is too short for production (minimum: 32 characters)");
-                std::process::exit(1);
-            }
-            if config.jwt.secret.contains("change") || config.jwt.secret.contains("secret") {
-                tracing::error!("🔴 JWT_SECRET appears to be a default value - change it!");
-                std::process::exit(1);
-            }
-        }
-        "staging" => {
-            if config.bcrypt.cost < 8 {
-                tracing::warn!(
-                    "⚠️  BCRYPT_COST={} is too low for staging (minimum: 8)", 
-                    config.bcrypt.cost
-                );
-            } else if config.bcrypt.cost >= 10 {
-                tracing::info!("✅ BCRYPT_COST={} is good for staging", config.bcrypt.cost);
-            }
-        }
-        "development" => {
-            if config.bcrypt.cost < 6 {
-                tracing::warn!(
-                    "⚠️  BCRYPT_COST={} may be too low even for development", 
-                    config.bcrypt.cost
-                );
-            } else {
-                tracing::info!(
-                    "ℹ️  BCRYPT_COST={} (development mode - faster hashing)", 
-                    config.bcrypt.cost
-                );
-            }
-        }
-        _ => {
-            tracing::warn!("⚠️  Unknown environment: {}", config.server.env);
-        }
-    }
 }

@@ -1,3 +1,6 @@
+pub mod validators;
+pub use validators::validate_security_config;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::env;

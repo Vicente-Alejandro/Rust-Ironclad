@@ -1,14 +1,6 @@
 pub mod authentication;
 pub mod controllers;
-
-// Re-export authentication guards
-pub use authentication::{
-    AuthUser, 
-    AdminUser, 
-    ModeratorUser, 
-    PremiumUser, 
-    RoleUser
-};
+pub mod handlers;
 
 // Re-export controllers
 pub use controllers::{
@@ -17,3 +9,5 @@ pub use controllers::{
     TestItemController,
     HealthController,
 };
+
+pub use handlers::handle_not_found; // Default 404 handler
