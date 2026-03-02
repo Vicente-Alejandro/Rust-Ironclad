@@ -376,7 +376,7 @@ impl HealthController {
 
     /// Endpoint 5: System Info JSON (Same as system_info but only JSON, no HTML)
     pub async fn system_info_json(pool: web::Data<PgPool>) -> ApiResult<HttpResponse> {
-        // Reutilizar la lógica de system_info pero solo devolver JSON
+        // Reuse system_info logic but only return JSON
         Self::system_info(pool).await
     }
 

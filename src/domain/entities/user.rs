@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::domain::value_objects::Role;
+use crate::domain::value_objects::{Role, Username, EmailAddress};
+use crate::errors::DomainError;
 
 // Imports para SQLx
 use sqlx::postgres::PgRow;
@@ -11,8 +12,8 @@ use sqlx::Row;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
-    pub email: String,
-    pub username: String,
+    pub email: EmailAddress,
+    pub username: Username,
     pub password_hash: String,
     pub role: Role,
     pub is_active: bool,
@@ -30,8 +31,9 @@ impl sqlx::FromRow<'_, PgRow> for User {
 
         Ok(User {
             id: row.try_get("id")?,
-            email: row.try_get("email")?,
-            username: row.try_get("username")?,
+            // We assume the DB is a trusted source, we skip re-validation
+            email: EmailAddress::from_trusted(row.try_get("email")?), 
+            username: Username::from_trusted(row.try_get("username")?),
             password_hash: row.try_get("password_hash")?,
             role,
             is_active: row.try_get("is_active")?,
@@ -42,10 +44,10 @@ impl sqlx::FromRow<'_, PgRow> for User {
 }
 
 impl User {
-    /// Crear nuevo usuario con valores por defecto
-    pub fn new(email: String, username: String, password_hash: String) -> Self {
+    /// Smart Constructor: Returns Result guaranteeing a valid state
+    pub fn new(email: EmailAddress, username: Username, password_hash: String) -> Result<Self, DomainError> {
         let now = Utc::now();
-        Self {
+        Ok(Self {
             id: Uuid::new_v4().to_string(),
             email,
             username,
@@ -54,18 +56,18 @@ impl User {
             is_active: true,
             created_at: now,
             updated_at: now,
-        }
+        })
     }
 
-    /// Create user with specific role
+    /// Smart Constructor with specific role
     pub fn new_with_role(
-        email: String,
-        username: String,
+        email: EmailAddress,
+        username: Username,
         password_hash: String,
         role: Role,
-    ) -> Self {
+    ) -> Result<Self, DomainError> {
         let now = Utc::now();
-        Self {
+        Ok(Self {
             id: Uuid::new_v4().to_string(),
             email,
             username,
@@ -74,24 +76,21 @@ impl User {
             is_active: true,
             created_at: now,
             updated_at: now,
-        }
+        })
     }
 
     // ============================================
     // Business Logic Methods (Domain Logic)
     // ============================================
 
-    /// Verificar si el usuario es admin
     pub fn is_admin(&self) -> bool {
         self.role.is_admin()
     }
 
-    /// Verificar si puede moderar
     pub fn can_moderate(&self) -> bool {
         self.role.can_moderate()
     }
 
-    /// Check if user is active
     pub fn is_active(&self) -> bool {
         self.is_active
     }
@@ -100,37 +99,31 @@ impl User {
     // Mutation Methods (Update timestamp)
     // ============================================
 
-    /// Actualizar email
-    pub fn update_email(&mut self, email: String) {
+    pub fn update_email(&mut self, email: EmailAddress) {
         self.email = email;
         self.updated_at = Utc::now();
     }
 
-    /// Actualizar username
-    pub fn update_username(&mut self, username: String) {
+    pub fn update_username(&mut self, username: Username) {
         self.username = username;
         self.updated_at = Utc::now();
     }
 
-    /// Actualizar password hash
     pub fn update_password_hash(&mut self, password_hash: String) {
         self.password_hash = password_hash;
         self.updated_at = Utc::now();
     }
 
-    /// Cambiar role (solo admin puede hacerlo)
     pub fn change_role(&mut self, role: Role) {
         self.role = role;
         self.updated_at = Utc::now();
     }
 
-    /// Activar usuario
     pub fn activate(&mut self) {
         self.is_active = true;
         self.updated_at = Utc::now();
     }
 
-    /// Desactivar usuario
     pub fn deactivate(&mut self) {
         self.is_active = false;
         self.updated_at = Utc::now();
@@ -140,14 +133,13 @@ impl User {
     // Conversions
     // ============================================
 
-    /// Convertir a DTO de respuesta (sin datos sensibles)
     pub fn to_response(&self) -> crate::application::dtos::UserResponse {
         use crate::application::dtos::UserResponse;
 
         UserResponse {
             id: self.id.clone(),
-            email: self.email.clone(),
-            username: self.username.clone(),
+            email: self.email.as_str().to_string(),
+            username: self.username.as_str().to_string(),
             role: self.role.to_string(),
             is_active: self.is_active,
             created_at: self.created_at.to_rfc3339(),
@@ -169,24 +161,10 @@ pub struct Claims {
 impl Claims {
     pub fn new(user_id: String, email: String, role: String, exp: i64) -> Self {
         let iat = Utc::now().timestamp();
-        Self {
-            sub: user_id,
-            email,
-            role,
-            exp,
-            iat,
-        }
+        Self { sub: user_id, email, role, exp, iat }
     }
 
-    pub fn is_admin(&self) -> bool {
-        self.role == "admin"
-    }
-
-    pub fn has_role(&self, required_role: &str) -> bool {
-        self.role == required_role
-    }
-
-    pub fn has_any_role(&self, roles: &[&str]) -> bool {
-        roles.contains(&self.role.as_str())
-    }
+    pub fn is_admin(&self) -> bool { self.role == "admin" }
+    pub fn has_role(&self, required_role: &str) -> bool { self.role == required_role }
+    pub fn has_any_role(&self, roles: &[&str]) -> bool { roles.contains(&self.role.as_str()) }
 }

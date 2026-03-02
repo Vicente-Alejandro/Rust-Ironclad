@@ -20,7 +20,7 @@ impl Role {
     }
 
     /// Parse role from string - returns Option for safety
-    pub fn from_str(s: &str) -> Option<Self> {  // ✅ Cambiar a Option
+    pub fn from_str(s: &str) -> Option<Self> {  
         match s.to_lowercase().as_str() {
             "admin" => Some(Role::Admin),
             "user" => Some(Role::User),

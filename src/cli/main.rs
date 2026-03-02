@@ -95,7 +95,7 @@ const STORAGE_DIRS: &[&str] = &[
 
 #[tokio::main]
 async fn main() {
-    // ✅ FIX: Detectar y cambiar al directorio raíz del proyecto
+    // ✅ FIX: Detect and change to project root directory
     ensure_project_root();
 
     let cli = Cli::parse();
@@ -579,10 +579,10 @@ fn storage_info() {
     }
 
     println!("💾 Storage base: storage/");
-    println!("🌐 User uploads: static/storage → storage/app/public");  // ✅ Actualizado
+    println!("🌐 User uploads: static/storage → storage/app/public");  // ✅ Updated
     println!("🔧 Framework files: storage/framework/");
     println!("📝 Logs: storage/logs/");
-    println!("🎨 Static assets: static/framework/");  // ✅ Añadido
+    println!("🎨 Static assets: static/framework/");  // ✅ Added
 }
 
 /// Initialize storage directory structure

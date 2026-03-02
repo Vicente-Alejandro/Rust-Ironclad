@@ -1,6 +1,6 @@
 use actix_web::{
     body::{BoxBody, EitherBody},
-    cookie::Cookie, // Importación necesaria para la cookie de bypass
+    cookie::Cookie, // Required import for the bypass cookie
     dev::{Service, ServiceRequest, ServiceResponse, Transform},
     http::header,
     Error, HttpResponse,

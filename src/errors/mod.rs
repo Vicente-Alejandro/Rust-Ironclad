@@ -3,6 +3,13 @@ use actix_web::{error::ResponseError, http::StatusCode, HttpResponse};
 use serde::Serialize;
 use thiserror::Error;
 
+/// Errores puros del Dominio (Reglas de negocio)
+#[derive(Error, Debug)]
+pub enum DomainError {
+    #[error("Domain Validation Error: {0}")]
+    Validation(String),
+}
+
 #[derive(Error, Debug)]
 pub enum ApiError {
     #[error("Not Found")]
@@ -31,6 +38,13 @@ pub enum ApiError {
 
     #[error("Conflict: {0}")]
     Conflict(String),
+}
+
+// Automatically convert DomainError to ApiError::ValidationError (HTTP 400)
+impl From<DomainError> for ApiError {
+    fn from(err: DomainError) -> Self {
+        ApiError::ValidationError(err.to_string())
+    }
 }
 
 #[derive(Serialize)]
@@ -72,7 +86,6 @@ impl ResponseError for ApiError {
     fn status_code(&self) -> StatusCode {
         match self {
             ApiError::NotFound(_) => StatusCode::NOT_FOUND,
-            // Need test this, but should be uncommented if needed in the future
             // ApiError::BadRequest(_) => StatusCode::BAD_REQUEST,
             ApiError::Unauthorized => StatusCode::UNAUTHORIZED,
             ApiError::Forbidden(_) => StatusCode::FORBIDDEN,

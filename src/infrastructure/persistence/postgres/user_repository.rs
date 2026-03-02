@@ -27,8 +27,8 @@ impl UserRepository for PostgresUserRepository {
         
         let created_user = sqlx::query_as::<_, User>(query)
             .bind(&user.id)
-            .bind(&user.email)
-            .bind(&user.username)
+            .bind(&user.email.as_str())
+            .bind(&user.username.as_str())
             .bind(&user.password_hash)
             .bind(user.role.as_str())
             .bind(user.is_active)
@@ -110,8 +110,8 @@ impl UserRepository for PostgresUserRepository {
         "#;
 
         sqlx::query(query)
-            .bind(&user.email)
-            .bind(&user.username)
+            .bind(&user.email.as_str())
+            .bind(&user.username.as_str())
             .bind(&user.password_hash)
             .bind(user.role.as_str())
             .bind(user.is_active)

@@ -11,10 +11,11 @@ use crate::errors::ApiError;
 use crate::interfaces::UserRepository;
 use crate::utils::auth::hash_password;
 use crate::config::AppConfig;
+use crate::domain::value_objects::{EmailAddress, Username};
 
 pub struct UserService {
     user_repository: Arc<dyn UserRepository>,
-    config: Arc<AppConfig>,  // 🆕 Agregar config
+    config: Arc<AppConfig>,  
 }
 
 impl UserService {
@@ -67,8 +68,7 @@ impl UserService {
         Ok(users.into_iter().map(|u| u.to_response()).collect())
     }
 
-    /// Update user profile (username, email, password)
-    pub async fn update_profile(
+pub async fn update_profile(
         &self,
         user_id: &str,
         request: UpdateProfileRequest,
@@ -80,31 +80,34 @@ impl UserService {
             .await?
             .ok_or_else(|| ApiError::NotFound("User not found".to_string()))?;
 
-        // Update fields if present
-        if let Some(username) = request.username {
-            // Validate that username is not empty
-            if username.trim().is_empty() {
-                return Err(ApiError::ValidationError(
-                    "Username cannot be empty".to_string()
-                ));
-            }
-            user.update_username(username);
+        // Update username if present
+        if let Some(username_str) = request.username {
+            // ✅ Build the Value Object. If invalid, returns error automatically.
+            let username_vo = Username::new(username_str)?; 
+            user.update_username(username_vo);
         }
 
-        if let Some(email) = request.email {
-            // Validate that email is not in use by another user
-            if let Some(existing_user) = self.user_repository.get_by_email(&email).await? {
+        // Update email if present
+        if let Some(email_str) = request.email {
+            // Validar si el email ya existe en BD para otro usuario
+            if let Some(existing_user) = self.user_repository.get_by_email(&email_str).await? {
                 if existing_user.id != user_id {
                     return Err(ApiError::Conflict(
                         "Email is already in use by another user".to_string()
                     ));
                 }
             }
-            user.update_email(email);
+            // ✅ Construimos el Value Object.
+            let email_vo = EmailAddress::new(email_str)?;
+            user.update_email(email_vo);
         }
 
+        // Update password if present
         if let Some(password) = request.password {
-            // Hash nuevo password
+            // ✅ You should add strong password validation here if applicable
+            crate::shared::validator::validate_strong_password(&password)
+                .map_err(|_| ApiError::ValidationError("Weak password".to_string()))?;
+
             let password_hash = hash_password(&password, &self.config)?;
             user.update_password_hash(password_hash);
         }
@@ -115,35 +118,6 @@ impl UserService {
         Ok(user.to_response())
     }
 
-    // /// Update user role (admin only)
-    // pub async fn update_user_role(
-    //     &self,
-    //     user_id: &str,
-    //     request: UpdateRoleRequest,
-    // ) -> Result<UserResponse, ApiError> {
-    //     // Buscar usuario
-    //     let mut user = self
-    //         .user_repository
-    //         .get_by_id(user_id)
-    //         .await?
-    //         .ok_or_else(|| ApiError::NotFound("User not found".to_string()))?;
-
-    //     // Parsear y validar role
-    //     let role = Role::from_str(&request.role).ok_or_else(|| {
-    //         ApiError::ValidationError(format!(
-    //             "Invalid role: '{}'. Valid roles are: admin, user, moderator, premium",
-    //             request.role
-    //         ))
-    //     })?;
-
-    //     // Actualizar role
-    //     user.change_role(role);
-
-    //     // Persistir cambios
-    //     self.user_repository.update(&user).await?;
-
-    //     Ok(user.to_response())
-    // }
 
     /// Deactivate user (admin only)
     pub async fn deactivate_user(&self, user_id: &str) -> Result<(), ApiError> {
