@@ -10,7 +10,7 @@ mod cli;
 mod db;
 mod middleware;
 mod routes;
-mod app_state;
+mod bootstrap;
 
 use middleware::MaintenanceMode;
 use actix_web::{web, App, HttpServer};
@@ -19,11 +19,8 @@ use tracing_subscriber;
 use tracing_actix_web::TracingLogger;
 
 use config::{AppConfig, validate_security_config};  
-use app_state::AppState;
+use bootstrap::AppState;
 use infrastructure::http::handle_not_found;  
-
-#[macro_use]
-mod macros;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

@@ -1,6 +1,10 @@
+//! Application State Container
+//!
+//! Manages dependency injection and service registration for the entire application.
+
 use std::sync::Arc;
 use sqlx::PgPool;
-// use actix_web::web;
+use actix_web::web;
 
 use crate::config::AppConfig;
 use crate::infrastructure::{PostgresUserRepository, PostgresTestItemRepository};

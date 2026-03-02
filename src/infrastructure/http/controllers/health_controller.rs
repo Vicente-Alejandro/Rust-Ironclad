@@ -368,7 +368,7 @@ impl HealthController {
 
     /// Endpoint 4: Dashboard HTML
     pub async fn system_dashboard() -> ApiResult<HttpResponse> {
-        let html = include_str!("../../../../templates/system/dashboard.html");
+        let html = include_str!("../../../../templates/framework/dashboard.html");
         Ok(HttpResponse::Ok()
             .content_type("text/html; charset=utf-8")
             .body(html))

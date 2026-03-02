@@ -51,12 +51,47 @@ enum Commands {
     
     /// Bring the application out of maintenance mode
     Up,
+
+    /// Storage management commands
+    Storage {
+        #[command(subcommand)]
+        action: StorageAction,
+    },
     
     /// Check CLI setup
     Test,
 }
 
+#[derive(Subcommand)]
+enum StorageAction {
+    /// Check storage directories and permissions
+    Check,
+    
+    /// Create public storage symlink
+    Link {
+        /// Force recreate symlink if exists
+        #[arg(long)]
+        force: bool,
+    },
+    
+    /// Show storage directories information
+    Info,
+    
+    /// Initialize storage directory structure
+    Init,
+}
+
 const MAINTENANCE_FILE: &str = "storage/framework/maintenance.json";
+
+// Storage directories configuration
+const STORAGE_DIRS: &[&str] = &[
+    "storage",
+    "storage/app",
+    "storage/app/public",
+    "storage/framework",
+    "storage/framework/cache",
+    "storage/logs",
+];
 
 #[tokio::main]
 async fn main() {
@@ -88,6 +123,13 @@ async fn main() {
         Some(Commands::Up) => {
             maintenance_up();
         }
+
+        Some(Commands::Storage { action }) => match action {
+            StorageAction::Check => storage_check(),
+            StorageAction::Link { force } => storage_link(force),
+            StorageAction::Info => storage_info(),
+            StorageAction::Init => storage_init(),
+        },
         
         Some(Commands::Test) => {
             println!("🔍 Running CLI diagnostics...");
@@ -330,4 +372,281 @@ fn mask_connection_string(url: &str) -> String {
         }
     }
     "***HIDDEN***".to_string()
+}
+
+// ==========================================
+// STORAGE COMMANDS IMPLEMENTATION
+// ==========================================
+
+fn storage_check() {
+    println!("🔍 Checking storage directories and permissions...");
+    println!();
+
+    let mut all_ok = true;
+
+    for dir in STORAGE_DIRS {
+        let path = Path::new(dir);
+        
+        print!("  📁 {} ... ", dir);
+        
+        if !path.exists() {
+            println!("❌ NOT FOUND");
+            all_ok = false;
+            continue;
+        }
+
+        let can_read = path.read_dir().is_ok();
+        let test_file = path.join(".permission_test");
+        let can_write = fs::write(&test_file, "test").is_ok();
+        if can_write {
+            let _ = fs::remove_file(&test_file);
+        }
+
+        match (can_read, can_write) {
+            (true, true) => println!("✅ OK (R/W)"),
+            (true, false) => {
+                println!("⚠️  READ ONLY");
+                all_ok = false;
+            }
+            (false, _) => {
+                println!("❌ NO ACCESS");
+                all_ok = false;
+            }
+        }
+    }
+
+    // Check storage symlink (cambiado de public/storage a static/storage)
+    let symlink_path = Path::new("static/storage");
+    print!("\n  🔗 static/storage symlink ... ");
+    
+    if symlink_path.exists() {
+        if symlink_path.is_symlink() || symlink_path.read_link().is_ok() {
+            println!("✅ EXISTS");
+        } else {
+            println!("⚠️  EXISTS (not a symlink)");
+        }
+    } else {
+        println!("❌ NOT FOUND");
+        println!("     Run: cargo run --bin ironclad -- storage link");
+        all_ok = false;
+    }
+
+    println!();
+    if all_ok {
+        println!("╔═══════════════════════════════════╗");
+        println!("║  ✅ All storage checks passed!   ║");
+        println!("╚═══════════════════════════════════╝");
+    } else {
+        println!("╔═══════════════════════════════════════════════╗");
+        println!("║  ⚠️  Some storage checks failed              ║");
+        println!("║     Run: cargo run --bin ironclad -- storage init  ║");
+        println!("╚═══════════════════════════════════════════════╝");
+    }
+}
+
+/// Create storage symlink in static directory (not public)
+fn storage_link(force: bool) {
+    println!("🔗 Creating static/storage symlink...");
+    println!();
+
+    let target = Path::new("storage/app/public");
+    let link = Path::new("static/storage");  // ✅ Cambiar de public/storage a static/storage
+
+    // Check if target exists
+    if !target.exists() {
+        eprintln!("❌ Target directory not found: storage/app/public");
+        eprintln!("   Run: cargo run --bin ironclad -- storage init");
+        process::exit(1);
+    }
+
+    // Check if link already exists
+    if link.exists() {
+        if !force {
+            eprintln!("❌ Symlink already exists: static/storage");
+            eprintln!("   Use --force to recreate it");
+            process::exit(1);
+        }
+        
+        println!("⚠️  Removing existing symlink...");
+        if let Err(e) = fs::remove_file(link).or_else(|_| fs::remove_dir_all(link)) {
+            eprintln!("❌ Failed to remove existing symlink: {}", e);
+            process::exit(1);
+        }
+    }
+
+    // Create parent directory if needed
+    if let Some(parent) = link.parent() {
+        if !parent.exists() {
+            if let Err(e) = fs::create_dir_all(parent) {
+                eprintln!("❌ Failed to create static directory: {}", e);
+                process::exit(1);
+            }
+        }
+    }
+
+    // Create symlink (platform-specific)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+        
+        let target_abs = env::current_dir().unwrap().join(target);
+        match symlink(&target_abs, link) {
+            Ok(_) => {
+                println!("✅ Symlink created successfully!");
+                println!();
+                println!("   From: static/storage");
+                println!("   To:   {}", target_abs.display());
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to create symlink: {}", e);
+                process::exit(1);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::symlink_dir;
+        
+        let target_abs = env::current_dir().unwrap().join(target);
+        match symlink_dir(&target_abs, link) {
+            Ok(_) => {
+                println!("✅ Symlink created successfully!");
+                println!();
+                println!("   From: static\\storage");
+                println!("   To:   {}", target_abs.display());
+                println!();
+                println!("ℹ️  Note: On Windows, you may need Administrator privileges");
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to create symlink: {}", e);
+                eprintln!();
+                eprintln!("💡 On Windows, you may need to:");
+                eprintln!("   1. Run as Administrator");
+                eprintln!("   2. Enable Developer Mode in Windows Settings");
+                process::exit(1);
+            }
+        }
+    }
+}
+
+fn storage_info() {
+    println!("📊 Storage Directory Information");
+    println!();
+
+    let current_dir = env::current_dir().unwrap();
+    println!("📍 Base directory: {}", current_dir.display());
+    println!();
+
+    println!("📁 Storage structure:");
+    println!();
+
+    for dir in STORAGE_DIRS {
+        let path = Path::new(dir);
+        let full_path = current_dir.join(path);
+        
+        if path.exists() {
+            let metadata = fs::metadata(path).ok();
+            let size = metadata.map(|m| m.len()).unwrap_or(0);
+            
+            let file_count = if path.is_dir() {
+                fs::read_dir(path)
+                    .map(|entries| entries.count())
+                    .unwrap_or(0)
+            } else {
+                0
+            };
+
+            println!("  ✅ {}", dir);
+            println!("     Path: {}", full_path.display());
+            println!("     Items: {}", file_count);
+            println!("     Size: {} bytes", size);
+            println!();
+        } else {
+            println!("  ❌ {} (not found)", dir);
+            println!();
+        }
+    }
+
+    // Check symlink (cambiado de public/storage a static/storage)
+    let symlink_path = Path::new("static/storage");
+    if symlink_path.exists() {
+        println!("  🔗 static/storage");
+        if let Ok(target) = symlink_path.read_link() {
+            println!("     Target: {}", target.display());
+        }
+        println!();
+    }
+
+    println!("💾 Storage base: storage/");
+    println!("🌐 User uploads: static/storage → storage/app/public");  // ✅ Actualizado
+    println!("🔧 Framework files: storage/framework/");
+    println!("📝 Logs: storage/logs/");
+    println!("🎨 Static assets: static/framework/");  // ✅ Añadido
+}
+
+/// Initialize storage directory structure
+fn storage_init() {
+    println!("🚀 Initializing storage directory structure...");
+    println!();
+
+    let mut created = Vec::new();
+    let mut existed = Vec::new();
+
+    for dir in STORAGE_DIRS {
+        let path = Path::new(dir);
+        
+        if path.exists() {
+            existed.push(dir.to_string());
+        } else {
+            match fs::create_dir_all(path) {
+                Ok(_) => {
+                    println!("  ✅ Created: {}", dir);
+                    created.push(dir.to_string());
+                }
+                Err(e) => {
+                    eprintln!("  ❌ Failed to create {}: {}", dir, e);
+                    process::exit(1);
+                }
+            }
+        }
+    }
+
+    // Create .gitignore files
+    create_gitignore_files();
+
+    println!();
+    println!("📊 Summary:");
+    println!("  ✅ Created: {} directories", created.len());
+    println!("  ⏭️  Existed: {} directories", existed.len());
+    println!();
+
+    if !created.is_empty() {
+        println!("✅ Storage structure initialized successfully!");
+        println!();
+        println!("Next steps:");
+        println!("  1. Run: cargo run --bin ironclad -- storage link");
+        println!("  2. Run: cargo run --bin ironclad -- storage check");
+    } else {
+        println!("ℹ️  All directories already exist");
+    }
+}
+
+/// Create .gitignore files for storage directories
+fn create_gitignore_files() {
+    let gitignores = vec![
+        ("storage/app/.gitignore", "*\n!public/\n!.gitignore"),
+        ("storage/app/public/.gitignore", "*\n!.gitignore"),
+        ("storage/framework/.gitignore", "*\n!cache/\n!.gitignore"),
+        ("storage/framework/cache/.gitignore", "*\n!.gitignore"),
+        ("storage/logs/.gitignore", "*\n!.gitignore"),
+    ];
+
+    for (path, content) in gitignores {
+        if !Path::new(path).exists() {
+            if let Err(e) = fs::write(path, content) {
+                eprintln!("  ⚠️  Failed to create {}: {}", path, e);
+            }
+        }
+    }
 }
