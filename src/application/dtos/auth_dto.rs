@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use crate::domain::value_objects::Role;
 use validator::Validate;  
 
-/// DTO para registro de usuario
-#[derive(Debug, Deserialize, Serialize, Validate)]  // 🆕 Agregar Validate
+/// // DTO to register a new user
+#[derive(Debug, Deserialize, Serialize, Validate)]  
 pub struct RegisterUserRequest {
     #[validate(email(message = "Invalid email format"))]
     pub email: String,
@@ -15,8 +15,8 @@ pub struct RegisterUserRequest {
     pub password: String,
 }
 
-/// DTO para login
-#[derive(Debug, Deserialize, Serialize, Validate)]  // 🆕 Agregar Validate
+/// DTO for user login
+#[derive(Debug, Deserialize, Serialize, Validate)]  
 pub struct LoginRequest {
     #[validate(email(message = "Invalid email format"))]
     pub email: String,
@@ -25,8 +25,8 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-/// DTO para actualizar perfil de usuario
-#[derive(Debug, Deserialize, Serialize, Validate)]  // 🆕 Agregar Validate
+/// DTO to update user profile
+#[derive(Debug, Deserialize, Serialize, Validate)]  
 pub struct UpdateProfileRequest {
     #[validate(length(min = 3, max = 50, message = "Username must be between 3 and 50 characters"))]
     pub username: Option<String>,
@@ -38,15 +38,15 @@ pub struct UpdateProfileRequest {
     pub password: Option<String>,
 }
 
-/// DTO para actualizar role (solo admin)
-#[derive(Debug, Deserialize, Serialize, Validate)]  // 🆕 Agregar Validate
+/// DTO to update user role (admin only)
+#[derive(Debug, Deserialize, Serialize, Validate)]  
 pub struct UpdateRoleRequest {
     #[validate(length(min = 1, message = "Role is required"))]
     pub role: String,
 }
 
 
-/// DTO para respuesta de usuario (sin datos sensibles)
+/// DTO for user response (without sensitive data)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserResponse {
     pub id: String,
@@ -65,7 +65,7 @@ pub struct AuthResponse {
     pub token: String,
 }
 
-/// DTO para respuesta paginada
+/// DTO for paginated response
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaginatedResponse<T> {
     pub data: Vec<T>,
