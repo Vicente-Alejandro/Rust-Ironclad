@@ -417,18 +417,18 @@
         }
 
         function applyModuleVisibility() {
-            // Control del Panel del Reloj
+            // Control panel visibility and also send commands to the ClockModule if it exists
             if (globalControls.clockSwitch.checked) {
                 globalControls.leftPanel.classList.remove('hidden');
                 
-                // Validación segura antes de reanudar
+                // Validation to ensure ClockModule exists and has the resume function before calling it
                 if (typeof ClockModule !== 'undefined' && typeof ClockModule.resume === 'function') {
                     ClockModule.resume();
                 }
             } else {
                 globalControls.leftPanel.classList.add('hidden');
                 
-                // Validación segura antes de pausar
+                // This ensures we don't get errors if the ClockModule isn't defined or doesn't have the pause function
                 if (typeof ClockModule !== 'undefined' && typeof ClockModule.pause === 'function') {
                     ClockModule.pause();
                 }

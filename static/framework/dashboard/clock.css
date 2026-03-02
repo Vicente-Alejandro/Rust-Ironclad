@@ -1,5 +1,5 @@
 /* =========================================================
-   ESTILOS BASE DEL PANEL Y EL RELOJ
+   BASE
    ========================================================= */
 .clock-panel {
     background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); padding: 1.5rem;
@@ -26,7 +26,7 @@
 }
 
 /* =========================================================
-   MODAL MAXIMIZADO (Solución Nítida)
+   MAX MODE
    ========================================================= */
 .watch-modal-overlay {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -47,7 +47,7 @@
 .maximize-btn:hover { color: #3b82f6; }
 
 /* =========================================================
-   CARA INTERIOR Y COMPONENTES COMUNES
+   WATCH FACE & HANDS
    ========================================================= */
 .watch-face {
     position: absolute; width: 140px; height: 140px;
@@ -63,7 +63,7 @@
 .hand-hour, .hand-minute, .hand-second { position: absolute; left: 50%; bottom: 50%; transform-origin: center bottom; }
 
 /* =========================================================
-   REFLEJOS DINÁMICOS (MOTOR SOLAR)
+   GLASS & REFLECTIONS
    ========================================================= */
 .glass-reflection {
     position: absolute; inset: 0; pointer-events: none; z-index: 20; border-radius: inherit;
