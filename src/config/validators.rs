@@ -107,10 +107,15 @@ pub fn validate_all_config(config: &AppConfig) -> Result<(), Vec<String>> {
         errors.push("JWT_SECRET is too short for production".to_string());
     }
 
-    // Database validation
-    if config.database.postgres_url.is_empty() {
+    // Postgress validation
+    if config.db_postgres.postgres_url.is_empty() {
         errors.push("DATABASE_URL is not set".to_string());
     }
+
+    // Mysql MariaDB validation TODO
+    // if config.db_mysql.mysql_url.is_empty() {
+    //     errors.push("MYSQL_URL is not set".to_string());
+    // }
 
     if errors.is_empty() {
         Ok(())

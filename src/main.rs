@@ -50,7 +50,7 @@ async fn main() -> std::io::Result<()> {
     // ============================================
     // Initialize Database
     // ============================================
-    let pg_pool = db::postgres::init_pool(&app_config.database)
+    let pg_pool = db::postgres::init_pool(&app_config.db_postgres)
         .await
         .expect("Failed to initialize PostgreSQL pool");
     tracing::info!("✅ PostgreSQL connected");

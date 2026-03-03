@@ -8,7 +8,8 @@ use std::env;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub server: ServerConfig,
-    pub database: DatabaseConfig,
+    pub db_postgres: PostgresConfig,
+    pub db_mysql: Option<MySqlConfig>,
     pub mongodb: Option<MongoDBConfig>,
     pub jwt: JwtConfig,
     pub bcrypt: BcryptConfig,  
@@ -22,9 +23,21 @@ pub struct ServerConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DatabaseConfig {
+pub struct PostgresConfig {
     pub postgres_url: String,
     pub max_connections: u32,
+    pub min_connections: u32,
+    pub acquire_timeout: u64,
+    pub idle_timeout: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MySqlConfig {
+    pub mysql_url: String,
+    pub max_connections: u32,
+    pub min_connections: u32,
+    pub acquire_timeout: u64,
+    pub idle_timeout: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,12 +70,40 @@ impl AppConfig {
                     .parse()?,
                 env: env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()),
             },
-            database: DatabaseConfig {
+            db_postgres: PostgresConfig {
                 postgres_url: env::var("DATABASE_URL")
                     .unwrap_or_else(|_| "postgresql://user:password@localhost/template_db".to_string()),
                 max_connections: env::var("DB_MAX_CONNECTIONS")
                     .unwrap_or_else(|_| "5".to_string())
                     .parse()?,
+                min_connections: env::var("DB_MIN_CONNECTIONS")
+                    .unwrap_or_else(|_| "1".to_string())
+                    .parse()?,
+                acquire_timeout: env::var("DB_ACQUIRE_TIMEOUT")
+                    .unwrap_or_else(|_| "5".to_string())
+                    .parse()?,
+                idle_timeout: env::var("DB_IDLE_TIMEOUT")
+                    .unwrap_or_else(|_| "300".to_string())
+                    .parse()?,
+            },
+            db_mysql: if let Ok(mysql_url) = env::var("MYSQL_URL") {
+                Some(MySqlConfig {
+                    mysql_url,
+                    max_connections: env::var("MYSQL_MAX_CONNECTIONS")
+                        .unwrap_or_else(|_| "5".to_string())
+                        .parse()?,
+                    min_connections: env::var("MYSQL_MIN_CONNECTIONS")
+                        .unwrap_or_else(|_| "1".to_string())
+                        .parse()?,
+                    acquire_timeout: env::var("MYSQL_ACQUIRE_TIMEOUT")
+                        .unwrap_or_else(|_| "5".to_string())
+                        .parse()?,
+                    idle_timeout: env::var("MYSQL_IDLE_TIMEOUT")
+                        .unwrap_or_else(|_| "300".to_string())
+                        .parse()?,
+                })
+            } else {
+                None
             },
             mongodb: if let Ok(mongo_url) = env::var("MONGODB_URL") {
                 Some(MongoDBConfig {
