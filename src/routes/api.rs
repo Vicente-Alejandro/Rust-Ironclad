@@ -1,6 +1,8 @@
 use actix_web::web;
 use actix_files::Files; 
+use actix_governor::Governor;
 use crate::infrastructure::http::{AuthController, UserController, TestItemController, HealthController};
+use crate::middleware::rate_limit::api_rate_limiter;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     // 1. Configure the static files route (CSS, JS, Images)
@@ -50,7 +52,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .route("/health", web::get().to(HealthController::health_check))
                     .route("/uptime", web::get().to(HealthController::uptime))
                     .route("/system", web::get().to(HealthController::system_dashboard)) 
-                    .route("/system-json", web::get().to(HealthController::system_info_json))  
+                    .service(
+                        web::resource("/system-json")
+                            .wrap(Governor::new(&api_rate_limiter(1, 2)))
+                            .route(web::get().to(HealthController::system_info_json))
+                    )
             )
     );
 }
