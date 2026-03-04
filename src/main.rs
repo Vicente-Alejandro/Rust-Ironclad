@@ -10,6 +10,7 @@ mod cli;
 mod db;
 mod middleware;
 mod routes;
+pub mod route_registry;
 mod bootstrap;
 
 use middleware::MaintenanceMode;

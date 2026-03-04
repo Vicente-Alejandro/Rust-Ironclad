@@ -5,6 +5,11 @@ use std::path::{Path, PathBuf};
 use std::process;
 use std::env;
 
+#[path = "../route_registry.rs"]
+mod route_registry;
+
+use route_registry::get_routes;
+
 #[derive(Parser)]
 #[command(name = "ironclad")]
 #[command(version = "1.0")]
@@ -57,9 +62,28 @@ enum Commands {
         #[command(subcommand)]
         action: StorageAction,
     },
+
+    Route {
+        #[command(subcommand)]
+        action: RouteAction,
+    },
     
     /// Check CLI setup
     Test,
+}
+
+#[derive(Subcommand)]
+enum RouteAction {
+    /// List all registered routes
+    List {
+        /// Filter routes by HTTP method (GET, POST, PUT, DELETE…)
+        #[arg(long)]
+        method: Option<String>,
+
+        /// Filter routes by URI fragment
+        #[arg(long)]
+        path: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -129,6 +153,10 @@ async fn main() {
             StorageAction::Link { force } => storage_link(force),
             StorageAction::Info => storage_info(),
             StorageAction::Init => storage_init(),
+        },
+
+        Some(Commands::Route { action }) => match action {
+            RouteAction::List { method, path } => route_list(method, path),
         },
         
         Some(Commands::Test) => {
@@ -649,4 +677,103 @@ fn create_gitignore_files() {
             }
         }
     }
+}
+
+fn route_list(filter_method: Option<String>, filter_path: Option<String>) {
+    let routes = get_routes();
+
+    // Apply filters
+    let routes: Vec<_> = routes
+        .iter()
+        .filter(|r| {
+            filter_method
+                .as_deref()
+                .map(|m| r.method.eq_ignore_ascii_case(m))
+                .unwrap_or(true)
+        })
+        .filter(|r| {
+            filter_path
+                .as_deref()
+                .map(|p| r.uri.contains(p))
+                .unwrap_or(true)
+        })
+        .collect();
+
+    if routes.is_empty() {
+        println!("  No routes match the given filters.");
+        return;
+    }
+
+    // ── Measure column widths ─────────────────────────────────────────
+    let method_w = routes.iter().map(|r| r.method.len()).max().unwrap_or(6).max(6); // min "Method"
+    let uri_w    = routes.iter().map(|r| r.uri.len()).max().unwrap_or(3).max(3);    // min "URI"
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    let divider = || {
+        println!(
+            "  +{}+{}+",
+            "-".repeat(method_w + 2),
+            "-".repeat(uri_w + 2)
+        )
+    };
+
+    let row = |method: &str, uri: &str| {
+        println!(
+            "  | {:<method_w$} | {:<uri_w$} |",
+            method,
+            uri,
+            method_w = method_w,
+            uri_w = uri_w
+        )
+    };
+
+    // ── Colour helpers (ANSI, disabled on Windows non-VT) ────────────
+    let color_method = |m: &str| -> String {
+        let code = match m {
+            "GET"    => "\x1b[32m",   // green
+            "POST"   => "\x1b[33m",   // yellow
+            "PUT"    => "\x1b[34m",   // blue
+            "PATCH"  => "\x1b[36m",   // cyan
+            "DELETE" => "\x1b[31m",   // red
+            _        => "\x1b[37m",   // white
+        };
+        format!("{}{}\x1b[0m", code, m)
+    };
+
+    // ── Header ───────────────────────────────────────────────────────
+    println!();
+    println!("  \x1b[1m🗺️  Ironclad Route List\x1b[0m");
+    println!();
+    divider();
+    row("Method", "URI");
+    divider();
+
+    // ── Rows ─────────────────────────────────────────────────────────
+    for r in &routes {
+        // ANSI colour for method — pad *before* injecting colour codes
+        // so column widths stay correct.
+        let method_padded = format!("{:<width$}", r.method, width = method_w);
+        let colored_method = color_method(&method_padded);
+
+        println!(
+            "  | {} | {:<uri_w$} |",
+            colored_method,
+            r.uri,
+            uri_w = uri_w
+        );
+    }
+
+    // ── Footer ───────────────────────────────────────────────────────
+    divider();
+    println!();
+    println!("  Total: {} route(s)", routes.len());
+
+    if filter_method.is_some() || filter_path.is_some() {
+        let mut hints = vec![];
+        if let Some(m) = &filter_method { hints.push(format!("--method {}", m)); }
+        if let Some(p) = &filter_path   { hints.push(format!("--path {}",   p)); }
+        println!("  Filters applied: {}", hints.join(", "));
+    }
+
+    println!();
 }
