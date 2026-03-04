@@ -568,7 +568,7 @@ fn storage_info() {
         }
     }
 
-    // Check symlink (cambiado de public/storage a static/storage)
+    // Check symlink (static/storage)
     let symlink_path = Path::new("static/storage");
     if symlink_path.exists() {
         println!("  🔗 static/storage");
@@ -579,10 +579,10 @@ fn storage_info() {
     }
 
     println!("💾 Storage base: storage/");
-    println!("🌐 User uploads: static/storage → storage/app/public");  // ✅ Updated
+    println!("🌐 User uploads: static/storage → storage/app/public");  
     println!("🔧 Framework files: storage/framework/");
     println!("📝 Logs: storage/logs/");
-    println!("🎨 Static assets: static/framework/");  // ✅ Added
+    println!("🎨 Static assets: static/framework/"); 
 }
 
 /// Initialize storage directory structure
