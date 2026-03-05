@@ -49,12 +49,52 @@ async fn main() -> std::io::Result<()> {
     tracing::info!("📍 Server: http://{}:{}", app_config.server.host, app_config.server.port);
 
     // ============================================
-    // Initialize Database
+    // Initialize Databases
     // ============================================
+    
+    // PostgreSQL (required)
     let pg_pool = db::postgres::init_pool(&app_config.db_postgres)
         .await
         .expect("Failed to initialize PostgreSQL pool");
     tracing::info!("✅ PostgreSQL connected");
+
+    // MySQL (optional)
+    if let Some(mysql_config) = &app_config.db_mysql {
+        match db::mysql::init_pool(mysql_config).await {
+            Ok(mysql_pool) => {
+                // Test connection
+                if let Err(e) = db::mysql::test_connection(&mysql_pool).await {
+                    tracing::warn!("⚠️  MySQL connection test failed: {}", e);
+                } else {
+                    tracing::info!("✅ MySQL connected");
+                    // TODO: Store mysql_pool in AppState if needed
+                }
+            }
+            Err(e) => {
+                tracing::warn!("⚠️  MySQL skipped: {}", e);
+            }
+        }
+    }
+
+    // let mysql_pool_option = if let Some(mysql_config) = &app_config.db_mysql {
+    //     match db::mysql::init_pool(mysql_config).await {
+    //         Ok(mysql_pool) => {
+    //             if let Err(e) = db::mysql::test_connection(&mysql_pool).await {
+    //                 tracing::warn!("⚠️  MySQL connection test failed: {}", e);
+    //                 None
+    //             } else {
+    //                 tracing::info!("✅ MySQL connected");
+    //                 Some(mysql_pool)
+    //             }
+    //         }
+    //         Err(e) => {
+    //             tracing::warn!("⚠️  MySQL skipped: {}", e);
+    //             None
+    //         }
+    //     }
+    // } else {
+    //     None
+    // };
 
     // MongoDB (optional)
     if let Some(mongo_config) = &app_config.mongodb {
@@ -67,10 +107,10 @@ async fn main() -> std::io::Result<()> {
     // ============================================
     // Validate Security Configuration
     // ============================================
-    validate_security_config(&app_config);  // Valide bcrypt cost and JWT settings
+    validate_security_config(&app_config);
 
     // ============================================
-    // Initialize AppState Container
+    // Bootstrap Application (DI Container)
     // ============================================
     let app_state = AppState::new(app_config.clone(), pg_pool);
 
@@ -86,8 +126,9 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         let app = App::new();
         
-        // Register services and app state macro 
-         let app = register_services!(
+        // Register services
+        // mysql_pool_option # if needed in AppState, pass it here
+        let app = register_services!(
             app,
             app_state,
             config,
@@ -97,7 +138,7 @@ async fn main() -> std::io::Result<()> {
             test_item_service
         );
         
-        app.wrap(MaintenanceMode) // Middleware for maintenance mode (NOTE: This should be before CORS to ensure it can handle maintenance responses properly)
+        app.wrap(MaintenanceMode)
             .wrap(
                 Cors::default()
                     .allow_any_origin()

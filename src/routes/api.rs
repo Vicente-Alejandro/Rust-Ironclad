@@ -54,7 +54,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .route("/system", web::get().to(HealthController::system_dashboard)) 
                     .service(
                         web::resource("/system-json")
-                            .wrap(Governor::new(&api_rate_limiter(1, 2)))
+                            .wrap(Governor::new(&api_rate_limiter(1, 4)))
                             .route(web::get().to(HealthController::system_info_json))
                     )
             )

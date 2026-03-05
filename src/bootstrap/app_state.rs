@@ -3,7 +3,7 @@
 //! Manages dependency injection and service registration for the entire application.
 
 use std::sync::Arc;
-use sqlx::PgPool;
+use sqlx::{PgPool, MySqlPool};
 use actix_web::web;
 
 use crate::config::AppConfig;
@@ -16,6 +16,7 @@ use crate::interfaces::{UserRepository, TestItemRepository};
 pub struct AppState {
     pub config: Arc<AppConfig>,
     pub pool: PgPool,
+    // pub mysql_pool: Option<MySqlPool>,
     pub auth_service: Arc<AuthService>,
     pub user_service: Arc<UserService>,
     pub test_item_service: Arc<TestItemService>,
@@ -58,6 +59,7 @@ impl AppState {
         Self {
             config,
             pool: pg_pool,
+            // mysql_pool,
             auth_service,
             user_service,
             test_item_service,
