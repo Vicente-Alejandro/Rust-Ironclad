@@ -52,6 +52,17 @@ async fn main() -> std::io::Result<()> {
     // Initialize Databases
     // ============================================
     
+    // For multiple DB support, you can use the following approach:
+    // let db_configs = vec![
+    //     DbConfig::Postgres(app_config.db_postgres.clone()),
+    //     app_config.db_mysql.clone().map(DbConfig::MySql),
+    //     app_config.mongodb.clone().map(DbConfig::MongoDB),
+    // ].into_iter().flatten().collect::<Vec<_>>();
+    // db::multiple_db_config::init_all_sql_db(&db_configs).await?;
+    // db::multiple_db_config::init_all_mongo_db(&db_configs).await?;
+    // RENEMBER TO TEST CONNECTIONS FOR EACH DB TYPE IN THE MULTIPLE DB CONFIG MODULE IF YOU USE IT.
+    // TODO, DONT USE IT YET, IT IS FOR TESTING PURPOSES ONLY AND NOT PRODUCTION READY, IT LACKS TEST CONNECTION LOGIC AND OTHER IMPORTANT FEATURES, USE WITH CAUTION.
+
     // PostgreSQL (required)
     let pg_pool = db::postgres::init_pool(&app_config.db_postgres)
         .await
