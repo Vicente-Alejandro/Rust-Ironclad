@@ -8,6 +8,7 @@ pub use controllers::{
     UserController,
     TestItemController,
     HealthController,
+    QueueController,
 };
 
 pub use handlers::handle_not_found; // Default 404 handler

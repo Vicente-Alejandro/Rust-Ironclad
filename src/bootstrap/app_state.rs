@@ -10,6 +10,7 @@ use crate::config::AppConfig;
 use crate::infrastructure::{PostgresUserRepository, PostgresTestItemRepository};
 use crate::application::{AuthService, UserService, TestItemService};
 use crate::interfaces::{UserRepository, TestItemRepository};
+use crate::queue::QueueManager;
 
 /// Global application state containing all services and dependencies
 #[derive(Clone)]
@@ -17,6 +18,7 @@ pub struct AppState {
     pub config: Arc<AppConfig>,
     pub pool: PgPool,
     // pub mysql_pool: Option<MySqlPool>,
+    pub queue_manager: Arc<QueueManager>,
     pub auth_service: Arc<AuthService>,
     pub user_service: Arc<UserService>,
     pub test_item_service: Arc<TestItemService>,
@@ -54,12 +56,18 @@ impl AppState {
         ));
 
         // ============================================
+        // Queue Manager
+        // ============================================
+        let queue_manager = Arc::new(QueueManager::new(pg_pool.clone()));
+
+        // ============================================
         // Return AppState
         // ============================================
         Self {
             config,
             pool: pg_pool,
             // mysql_pool,
+            queue_manager,
             auth_service,
             user_service,
             test_item_service,

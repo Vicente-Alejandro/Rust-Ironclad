@@ -1,7 +1,7 @@
 use actix_web::web;
 use actix_files::Files; 
 use actix_governor::Governor;
-use crate::infrastructure::http::{AuthController, UserController, TestItemController, HealthController};
+use crate::infrastructure::http::{AuthController, UserController, TestItemController, HealthController, QueueController,};
 use crate::middleware::rate_limit::api_rate_limiter;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -46,6 +46,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                     .route("/{id}", web::get().to(TestItemController::get_by_id))
                     .route("/{id}", web::put().to(TestItemController::update))
                     .route("/{id}", web::delete().to(TestItemController::delete))
+                    .route("/queue/{id}", web::delete().to(TestItemController::schedule_delete)) 
             )
             .service(
                 web::scope("/administration")
@@ -57,6 +58,10 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                             .wrap(Governor::new(&api_rate_limiter(1, 4)))
                             .route(web::get().to(HealthController::system_info_json))
                     )
+                    .route("/queue/pending", web::get().to(QueueController::get_pending))
+                    .route("/queue/stats", web::get().to(QueueController::get_stats))
+                    .route("/queue/{job_id}/retry", web::post().to(QueueController::retry_job))
+                    .route("/queue/{job_id}/cancel", web::delete().to(QueueController::cancel_job))
             )
     );
 }

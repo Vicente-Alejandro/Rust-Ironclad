@@ -12,12 +12,15 @@ mod middleware;
 mod routes;
 pub mod route_registry;
 mod bootstrap;
+mod queue;
 
 use middleware::MaintenanceMode;
 use actix_web::{web, App, HttpServer};
 use actix_cors::Cors;
 use tracing_subscriber;
 use tracing_actix_web::TracingLogger;
+use std::sync::Arc;
+use crate::queue::Worker;
 
 use config::{AppConfig, validate_security_config};  
 use bootstrap::AppState;
@@ -125,6 +128,21 @@ async fn main() -> std::io::Result<()> {
     // ============================================
     let app_state = AppState::new(app_config.clone(), pg_pool);
 
+    // ============================================
+    //  Start Background Workers
+    // ============================================
+    let worker = Arc::new(Worker::new(
+        app_state.pool.clone(),
+        app_state.test_item_service.clone(),
+        // TODO add more services.
+        // app_state.email_service.clone(),
+        // app_state.payment_service.clone(),
+    ));
+    
+    // Start worker pool (10 workers)
+    worker.start(10);
+    tracing::info!("✅ Background workers started (10 workers)");
+
     let address = format!("{}:{}", app_config.server.host, app_config.server.port);
 
     tracing::info!("🌐 Listening on http://{}", address);
@@ -144,6 +162,7 @@ async fn main() -> std::io::Result<()> {
             app_state,
             config,
             pool,
+            queue_manager,
             auth_service,
             user_service,
             test_item_service

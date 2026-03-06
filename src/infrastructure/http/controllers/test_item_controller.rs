@@ -6,6 +6,7 @@ use crate::application::services::TestItemService;
 use crate::errors::{ApiError, ApiResult};
 use crate::infrastructure::http::authentication::AuthUser;
 use crate::shared::ValidatedJson;
+use crate::queue::{QueueManager, JobPayload};  
 
 pub struct TestItemController;
 
@@ -61,11 +62,57 @@ impl TestItemController {
         Ok(HttpResponse::NoContent().finish())
     }
 
-    // TODO: Implement queue functionts to test
+    /// Schedule test item deletion using centralized queue
+    pub async fn schedule_delete(
+        queue: web::Data<Arc<QueueManager>>,
+        id: web::Path<String>,
+    ) -> ApiResult<HttpResponse> {
+        let item_id = id.into_inner();
+        
+        // Enqueue job with 10 seconds delay
+        let job_id = queue.enqueue_in(
+            JobPayload::DeleteTestItem { item_id: item_id.clone() },
+            10  // 10 seconds
+        ).await?;
+
+        Ok(HttpResponse::Accepted().json(serde_json::json!({
+            "status": "queued",
+            "job_id": job_id,
+            "message": format!("Deletion for item {} scheduled in 10 seconds", item_id),
+            "scheduled_at": chrono::Utc::now() + chrono::Duration::seconds(10)
+        })))
+    }
+
+    /// Schedule deletion at specific time
+    pub async fn schedule_delete_at(
+        queue: web::Data<Arc<QueueManager>>,
+        id: web::Path<String>,
+        req: web::Json<ScheduleRequest>,
+    ) -> ApiResult<HttpResponse> {
+        let item_id = id.into_inner();
+        
+        let job_id = queue.schedule(
+            JobPayload::DeleteTestItem { item_id: item_id.clone() },
+            req.scheduled_at,
+            3  // max 3 attempts
+        ).await?;
+
+        Ok(HttpResponse::Accepted().json(serde_json::json!({
+            "status": "queued",
+            "job_id": job_id,
+            "message": format!("Deletion for item {} scheduled at {}", item_id, req.scheduled_at),
+            "scheduled_at": req.scheduled_at
+        })))
+    }
 }
 
 #[derive(serde::Deserialize)]
 pub struct PaginationQuery {
     pub page: Option<i32>,
     pub per_page: Option<i32>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct ScheduleRequest {
+    pub scheduled_at: chrono::DateTime<chrono::Utc>,
 }
