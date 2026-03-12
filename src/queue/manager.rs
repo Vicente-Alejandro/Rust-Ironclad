@@ -1,5 +1,5 @@
 use sqlx::{PgPool, Row};
-use uuid::Uuid;  // Sigue siendo necesario para generar IDs
+use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration};
 use serde_json;
 
@@ -16,7 +16,7 @@ impl QueueManager {
     }
 
     /// Enqueue a job to be executed immediately
-    pub async fn enqueue(&self, payload: JobPayload) -> Result<String, ApiError> {  // ✅ Devuelve String
+    pub async fn enqueue(&self, payload: JobPayload) -> Result<String, ApiError> {
         self.schedule(payload, Utc::now(), 3).await
     }
 
@@ -26,7 +26,7 @@ impl QueueManager {
         payload: JobPayload,
         scheduled_at: DateTime<Utc>,
         max_attempts: i32,
-    ) -> Result<String, ApiError> {  // ✅ Devuelve String
+    ) -> Result<String, ApiError> {
         let job_type = match &payload {
             JobPayload::DeleteTestItem { .. } => "DeleteTestItem",
             JobPayload::SendEmail { .. } => "SendEmail",
@@ -37,7 +37,6 @@ impl QueueManager {
         let payload_json = serde_json::to_value(&payload)
             .map_err(|e| ApiError::InternalServerError(format!("Failed to serialize payload: {}", e)))?;
 
-        // ✅ Generar UUID como String
         let job_id = Uuid::new_v4().to_string();
 
         let job: Job = sqlx::query_as(
@@ -47,7 +46,7 @@ impl QueueManager {
             RETURNING *
             "#
         )
-        .bind(&job_id)  // ✅ Bind String ID
+        .bind(&job_id)
         .bind(job_type)
         .bind(payload_json)
         .bind(scheduled_at)
@@ -61,12 +60,41 @@ impl QueueManager {
     }
 
     /// Schedule a job to run after X seconds
-    pub async fn enqueue_in(&self, payload: JobPayload, delay_seconds: i64) -> Result<String, ApiError> {  // ✅ String
+    pub async fn enqueue_in(&self, payload: JobPayload, delay_seconds: i64) -> Result<String, ApiError> {
         let scheduled_at = Utc::now() + Duration::seconds(delay_seconds);
         self.schedule(payload, scheduled_at, 3).await
     }
 
+    /// 🆕 ATOMIC: Get pending job AND mark as running in one transaction
+    /// This prevents multiple workers from claiming the same job
+    pub async fn claim_next_job(&self) -> Result<Option<Job>, ApiError> {
+        let job = sqlx::query_as::<_, Job>(
+            r#"
+            UPDATE job_queue
+            SET status = 'running',
+                started_at = NOW(),
+                updated_at = NOW()
+            WHERE id = (
+                SELECT id FROM job_queue
+                WHERE status = 'pending'
+                  AND scheduled_at <= NOW()
+                ORDER BY priority DESC, scheduled_at ASC
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING *
+            "#
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        Ok(job)
+    }
+
+    /// ❌ DEPRECATED: Use claim_next_job() instead
     /// Get pending jobs ready to be executed
+    #[allow(dead_code)]
     pub async fn get_pending_jobs(&self, limit: i64) -> Result<Vec<Job>, ApiError> {
         let jobs = sqlx::query_as::<_, Job>(
             r#"
@@ -85,8 +113,9 @@ impl QueueManager {
         Ok(jobs)
     }
 
-    /// Mark job as running
-    pub async fn mark_running(&self, job_id: &str) -> Result<(), ApiError> {  // ✅ &str
+    /// ❌ DEPRECATED: No longer needed (claim_next_job does this atomically)
+    #[allow(dead_code)]
+    pub async fn mark_running(&self, job_id: &str) -> Result<(), ApiError> {
         sqlx::query(
             r#"
             UPDATE job_queue
@@ -105,7 +134,7 @@ impl QueueManager {
     }
 
     /// Mark job as completed
-    pub async fn mark_completed(&self, job_id: &str) -> Result<(), ApiError> {  // ✅ &str
+    pub async fn mark_completed(&self, job_id: &str) -> Result<(), ApiError> {
         sqlx::query(
             r#"
             UPDATE job_queue
@@ -124,7 +153,11 @@ impl QueueManager {
     }
 
     /// Mark job as failed and retry if possible
-    pub async fn mark_failed(&self, job_id: &str, error: &str) -> Result<(), ApiError> {  // ✅ &str
+    pub async fn mark_failed(&self, job_id: &str, error: &str) -> Result<(), ApiError> {
+        // 🆕 Use transaction to prevent race conditions on attempts counter
+        let mut tx = self.pool.begin().await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
         let job: Job = sqlx::query_as(
             r#"
             UPDATE job_queue
@@ -137,7 +170,7 @@ impl QueueManager {
         )
         .bind(job_id)
         .bind(error)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
@@ -152,7 +185,7 @@ impl QueueManager {
                 "#
             )
             .bind(job_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
@@ -169,12 +202,15 @@ impl QueueManager {
                 "#
             )
             .bind(job_id)
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
             tracing::warn!("Job {} failed (attempt {}/{}), will retry", job_id, job.attempts, job.max_attempts);
         }
+
+        tx.commit().await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
@@ -221,7 +257,7 @@ impl QueueManager {
     }
 
     /// Retry a failed job
-    pub async fn retry_job(&self, job_id: &str) -> Result<(), ApiError> {  // ✅ &str
+    pub async fn retry_job(&self, job_id: &str) -> Result<(), ApiError> {
         let result = sqlx::query(
             r#"
             UPDATE job_queue
@@ -249,7 +285,7 @@ impl QueueManager {
     }
 
     /// Cancel a pending job
-    pub async fn cancel_job(&self, job_id: &str) -> Result<(), ApiError> {  // ✅ &str
+    pub async fn cancel_job(&self, job_id: &str) -> Result<(), ApiError> {
         let result = sqlx::query(
             r#"
             UPDATE job_queue
