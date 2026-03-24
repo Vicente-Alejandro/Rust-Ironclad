@@ -9,6 +9,7 @@ use sysinfo::{
 };
 
 use crate::errors::ApiResult;
+use crate::errors::ApiError;
 
 // --- UTILITY FUNCTIONS ---
 
@@ -183,7 +184,7 @@ impl HealthController {
         let status_counts = sqlx::query(
             r#"
             SELECT status, COUNT(*) as count
-            FROM jobs
+            FROM job_queue
             GROUP BY status
             "#
         )
@@ -213,7 +214,7 @@ impl HealthController {
         let stuck_jobs: i64 = sqlx::query_scalar(
             r#"
             SELECT COUNT(*)
-            FROM jobs
+            FROM job_queue
             WHERE status = 'processing'
             AND lock_expires_at < NOW()
             "#
@@ -226,7 +227,7 @@ impl HealthController {
         let active_workers: i64 = sqlx::query_scalar(
             r#"
             SELECT COUNT(DISTINCT worker_id)
-            FROM jobs
+            FROM job_queue
             WHERE status = 'processing'
             AND worker_id IS NOT NULL
             "#
@@ -239,7 +240,7 @@ impl HealthController {
         let avg_time: Option<f64> = sqlx::query_scalar(
             r#"
             SELECT AVG(EXTRACT(EPOCH FROM (completed_at - started_at)))
-            FROM jobs
+            FROM job_queue
             WHERE completed_at IS NOT NULL
             "#
         )

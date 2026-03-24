@@ -58,6 +58,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
                             .wrap(Governor::new(&api_rate_limiter(1, 4)))
                             .route(web::get().to(HealthController::system_info_json))
                     )
+                    .route("/jobs/info", web::get().to(HealthController::jobs_info))
                     .route("/queue/pending", web::get().to(QueueController::get_pending))
                     .route("/queue/stats", web::get().to(QueueController::get_stats))
                     .route("/queue/{job_id}/retry", web::post().to(QueueController::retry_job))

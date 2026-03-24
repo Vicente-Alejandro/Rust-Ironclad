@@ -677,6 +677,29 @@
             return `${secs}s`;
         }
 
+        async function loadJobsInfo() {
+            try {
+                const res = await fetch('/api/administration/jobs/info');
+                const data = await res.json();
+
+                document.getElementById('jobs-pending').textContent = data.pending;
+                document.getElementById('jobs-processing').textContent = data.processing;
+                document.getElementById('jobs-completed').textContent = data.completed;
+                document.getElementById('jobs-failed').textContent = data.failed;
+
+                document.getElementById('jobs-workers').textContent = data.active_workers;
+                document.getElementById('jobs-stuck').textContent = data.stuck_jobs;
+
+                document.getElementById('jobs-avg-time').textContent =
+                    data.avg_execution_seconds
+                        ? data.avg_execution_seconds.toFixed(2) + 's'
+                        : '-';
+
+            } catch (err) {
+                console.error("Jobs info error:", err);
+            }
+        }
+
         // Initialize Application
         document.addEventListener('DOMContentLoaded', () => {
             // Init the clock module if it loaded correctly from /static
@@ -687,6 +710,9 @@
             }
             initGlobalControls();
             initDashboard();
+            setInterval(() => {
+                loadJobsInfo();
+            }, 500); // Refresh jobs info every 5 ms
         });
     </script>
 </body>
