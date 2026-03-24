@@ -99,3 +99,9 @@ impl ResponseError for ApiError {
 }
 
 pub type ApiResult<T> = Result<T, ApiError>;
+
+impl From<sqlx::Error> for ApiError {
+    fn from(err: sqlx::Error) -> Self {
+        ApiError::DatabaseError(err.to_string())
+    }
+}

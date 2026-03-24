@@ -124,42 +124,49 @@ impl Worker {
     /// - **Claim Error**: Worker sleeps 5 seconds before retrying (DB connection issues)
     /// - **No Jobs**: Worker sleeps 1 second before polling again (normal idle state)
     async fn run(&self, worker_id: usize) {
+        let worker_id_str = format!("worker-{}", worker_id);
+
         tracing::info!("Worker #{} started", worker_id);
 
         loop {
-            // Attempt to atomically claim the next available job.
-            // This ensures no two workers process the same job concurrently.
-            match self.queue.claim_next_job().await {
-                Ok(Some(job)) => {
-                    tracing::info!("Worker #{} claimed job {}", worker_id, job.id);
+            
+            if let Err(e) = self.queue.recover_stuck_jobs().await {
+                tracing::info!("Recovery error: {:?}", e);
+            }
 
-                    // Execute the job with appropriate error handling.
-                    match self.process_job(&job).await {
-                        Ok(_) => {
-                            // Job completed successfully; mark it as done.
+            match self.queue.claim_next_job(&worker_id_str).await {
+                Ok(Some(job)) => {
+                    tracing::info!(
+                        job_id = %job.id,
+                        worker_id = %worker_id_str,
+                        "Job claimed"
+                    );
+
+                    let result = tokio::time::timeout(
+                        Duration::from_secs(30),
+                        self.process_job(&job)
+                    ).await;
+
+                    match result {
+                        Ok(Ok(_)) => {
                             if let Err(e) = self.queue.mark_completed(&job.id).await {
-                                tracing::error!("Worker #{} failed to mark job {} as completed: {:?}", worker_id, job.id, e);
+                                tracing::error!("Mark completed error: {:?}", e);
                             }
                         }
-                        Err(e) => {
-                            // Job failed during execution.
-                            // Retry logic and backoff are managed by mark_failed internally.
+                        Ok(Err(e)) => {
                             let error_msg = format!("{:?}", e);
-                            if let Err(e) = self.queue.mark_failed(&job.id, &error_msg).await {
-                                tracing::error!("Worker #{} failed to mark job {} as failed: {:?}", worker_id, job.id, e);
-                            }
+                            let _ = self.queue.mark_failed(&job.id, &error_msg).await;
+                        }
+                        Err(_) => {
+                            let _ = self.queue.mark_failed(&job.id, "Timeout").await;
                         }
                     }
                 }
                 Ok(None) => {
-                    // No jobs available in the queue; sleep briefly before polling again.
-                    // This prevents busy-waiting and reduces database load during idle periods.
                     time::sleep(Duration::from_secs(1)).await;
                 }
                 Err(e) => {
-                    // Error while attempting to claim a job (likely a database error).
-                    // Log the error and implement exponential backoff to avoid connection storms.
-                    tracing::error!("Worker #{} error claiming job: {:?}", worker_id, e);
+                    tracing::error!("Worker error: {:?}", e);
                     time::sleep(Duration::from_secs(5)).await;
                 }
             }

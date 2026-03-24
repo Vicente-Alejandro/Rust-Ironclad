@@ -2,6 +2,7 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration};
 use serde_json;
+use rand::Rng;
 
 use crate::errors::ApiError;
 use super::job::{Job, JobPayload};
@@ -67,17 +68,20 @@ impl QueueManager {
 
     /// 🆕 ATOMIC: Get pending job AND mark as running in one transaction
     /// This prevents multiple workers from claiming the same job
-    pub async fn claim_next_job(&self) -> Result<Option<Job>, ApiError> {
+    pub async fn claim_next_job(&self, worker_id: &str) -> Result<Option<Job>, ApiError> {
         let job = sqlx::query_as::<_, Job>(
             r#"
             UPDATE job_queue
             SET status = 'running',
                 started_at = NOW(),
+                lock_expires_at = NOW() + interval '30 seconds',
+                worker_id = $1,
                 updated_at = NOW()
             WHERE id = (
                 SELECT id FROM job_queue
                 WHERE status = 'pending'
-                  AND scheduled_at <= NOW()
+                AND scheduled_at <= NOW()
+                AND (retry_at IS NULL OR retry_at <= NOW())
                 ORDER BY priority DESC, scheduled_at ASC
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED
@@ -85,6 +89,7 @@ impl QueueManager {
             RETURNING *
             "#
         )
+        .bind(worker_id)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
@@ -154,7 +159,6 @@ impl QueueManager {
 
     /// Mark job as failed and retry if possible
     pub async fn mark_failed(&self, job_id: &str, error: &str) -> Result<(), ApiError> {
-        // 🆕 Use transaction to prevent race conditions on attempts counter
         let mut tx = self.pool.begin().await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
@@ -174,44 +178,55 @@ impl QueueManager {
         .await
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        // If max attempts reached, mark as failed permanently
         if job.attempts >= job.max_attempts {
             sqlx::query(
                 r#"
                 UPDATE job_queue
                 SET status = 'failed',
+                    completed_at = NOW(),
                     updated_at = NOW()
                 WHERE id = $1
                 "#
             )
             .bind(job_id)
             .execute(&mut *tx)
-            .await
-            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+            .await?;
 
-            tracing::error!("Job {} failed permanently after {} attempts", job_id, job.attempts);
+            tracing::error!(
+                job_id = %job_id,
+                attempts = job.attempts,
+                "Job permanently failed"
+            );
         } else {
-            // Reset to pending for retry
+            let delay = calculate_backoff(job.attempts);
+            let retry_at = Utc::now() + Duration::seconds(delay);
+
             sqlx::query(
                 r#"
                 UPDATE job_queue
                 SET status = 'pending',
+                    retry_at = $2,
                     started_at = NULL,
+                    lock_expires_at = NULL,
+                    worker_id = NULL,
                     updated_at = NOW()
                 WHERE id = $1
                 "#
             )
             .bind(job_id)
+            .bind(retry_at)
             .execute(&mut *tx)
-            .await
-            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+            .await?;
 
-            tracing::warn!("Job {} failed (attempt {}/{}), will retry", job_id, job.attempts, job.max_attempts);
+            tracing::warn!(
+                job_id = %job_id,
+                attempts = job.attempts,
+                retry_in = delay,
+                "Job failed, scheduling retry"
+            );
         }
 
-        tx.commit().await
-            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
-
+        tx.commit().await?;
         Ok(())
     }
 
@@ -307,4 +322,35 @@ impl QueueManager {
         tracing::info!("Job {} cancelled", job_id);
         Ok(())
     }
+
+    pub async fn recover_stuck_jobs(&self) -> Result<(), ApiError> {
+        let affected = sqlx::query(
+            r#"
+            UPDATE job_queue
+            SET status = 'pending',
+                started_at = NULL,
+                lock_expires_at = NULL,
+                worker_id = NULL,
+                updated_at = NOW()
+            WHERE status = 'running'
+            AND lock_expires_at < NOW()
+            "#
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        if affected.rows_affected() > 0 {
+            tracing::warn!("Recovered {} stuck jobs", affected.rows_affected());
+        }
+
+        Ok(())
+    }
+}
+
+fn calculate_backoff(attempts: i32) -> i64 {
+    let base = 2_i64.pow(attempts as u32);
+    let mut rng = rand::thread_rng();
+    let jitter = (rng.gen::<u8>() % 5) as i64;
+    base + jitter
 }

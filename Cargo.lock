@@ -1678,6 +1678,7 @@ dependencies = [
  "lazy_static",
  "mockall",
  "mongodb",
+ "rand 0.8.5",
  "reqwest",
  "rustc_version_runtime 0.3.0",
  "serde",

@@ -68,6 +68,9 @@ futures = "0.3"
 # Async Trait
 async-trait = "0.1"
 
+# Misc
+rand = "0.8"
+
 # CLI
 clap = { version = "4.4", features = ["derive"] }
 rustc_version_runtime = "0.3"  
