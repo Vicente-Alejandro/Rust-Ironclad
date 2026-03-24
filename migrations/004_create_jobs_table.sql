@@ -35,3 +35,8 @@ $$ language 'plpgsql';
 -- Trigger to auto-update updated_at
 CREATE TRIGGER update_job_queue_updated_at BEFORE UPDATE ON job_queue
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE job_queue 
+ADD COLUMN retry_at TIMESTAMPTZ,
+ADD COLUMN lock_expires_at TIMESTAMPTZ,
+ADD COLUMN worker_id VARCHAR(100);

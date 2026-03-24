@@ -988,3 +988,129 @@ project/
 Questions? Create an [issue](https://github.com/Vicente-Alejandro/Rust-Ironclad/issues) or [PR](https://github.com/Vicente-Alejandro/Rust-Ironclad/pulls)
 
 </div>
+```
+template_project
+├─ Cargo.lock
+├─ Cargo.toml
+├─ IMPLEMENTATION.md
+├─ LICENSE
+├─ migrations
+│  ├─ 001_create_users_table.sql
+│  ├─ 002_add_role_to_users.sql
+│  ├─ 003_create_test_table.sql
+│  └─ 004_create_jobs_table.sql
+├─ README.md
+├─ src
+│  ├─ application
+│  │  ├─ dtos
+│  │  │  ├─ auth_dto.rs
+│  │  │  ├─ mod.rs
+│  │  │  └─ test_item_dto.rs
+│  │  ├─ mod.rs
+│  │  └─ services
+│  │     ├─ auth_service.rs
+│  │     ├─ mod.rs
+│  │     ├─ test_item_service.rs
+│  │     └─ user_service.rs
+│  ├─ bootstrap
+│  │  ├─ app_state.rs
+│  │  ├─ macros.rs
+│  │  ├─ mod.rs
+│  │  └─ providers.rs
+│  ├─ cli
+│  │  ├─ main.rs
+│  │  └─ mod.rs
+│  ├─ config
+│  │  ├─ mod.rs
+│  │  └─ validators.rs
+│  ├─ db
+│  │  ├─ mod.rs
+│  │  ├─ mongo.rs
+│  │  ├─ multiple_db_config.rs
+│  │  ├─ mysql.rs
+│  │  └─ postgres.rs
+│  ├─ domain
+│  │  ├─ entities
+│  │  │  ├─ mod.rs
+│  │  │  ├─ test_item.rs
+│  │  │  └─ user.rs
+│  │  ├─ mod.rs
+│  │  └─ value_objects
+│  │     ├─ email_address.rs
+│  │     ├─ mod.rs
+│  │     ├─ role.rs
+│  │     └─ username.rs
+│  ├─ errors
+│  │  └─ mod.rs
+│  ├─ infrastructure
+│  │  ├─ http
+│  │  │  ├─ authentication.rs
+│  │  │  ├─ controllers
+│  │  │  │  ├─ auth_controller.rs
+│  │  │  │  ├─ health_controller.rs
+│  │  │  │  ├─ mod.rs
+│  │  │  │  ├─ queue_controller.rs
+│  │  │  │  ├─ test_item_controller.rs
+│  │  │  │  └─ user_controller.rs
+│  │  │  ├─ handlers
+│  │  │  │  ├─ mod.rs
+│  │  │  │  └─ not_found.rs
+│  │  │  └─ mod.rs
+│  │  ├─ mod.rs
+│  │  └─ persistence
+│  │     ├─ mod.rs
+│  │     └─ postgres
+│  │        ├─ mod.rs
+│  │        ├─ test_item_repository.rs
+│  │        └─ user_repository.rs
+│  ├─ interfaces
+│  │  ├─ mod.rs
+│  │  └─ repositories
+│  │     ├─ mod.rs
+│  │     ├─ test_item_repository.rs
+│  │     └─ user_repository.rs
+│  ├─ main.rs
+│  ├─ middleware
+│  │  ├─ maintenance.rs
+│  │  ├─ mod.rs
+│  │  └─ rate_limit.rs
+│  ├─ queue
+│  │  ├─ job.rs
+│  │  ├─ manager.rs
+│  │  ├─ mod.rs
+│  │  └─ worker.rs
+│  ├─ routes
+│  │  ├─ api.rs
+│  │  └─ mod.rs
+│  ├─ route_registry.rs
+│  ├─ shared
+│  │  ├─ extractors
+│  │  │  ├─ mod.rs
+│  │  │  └─ validated_json.rs
+│  │  ├─ mod.rs
+│  │  └─ validator
+│  │     └─ mod.rs
+│  ├─ storage
+│  │  ├─ app
+│  │  └─ framework
+│  └─ utils
+│     ├─ auth.rs
+│     ├─ jwt.rs
+│     └─ mod.rs
+├─ static
+│  └─ framework
+│     └─ dashboard
+│        ├─ clock.css
+│        └─ clock.js
+├─ storage
+│  ├─ app
+│  │  └─ public
+│  ├─ framework
+│  │  └─ cache
+│  └─ logs
+└─ templates
+   ├─ framework
+   │  └─ dashboard.html
+   └─ render
+
+```
