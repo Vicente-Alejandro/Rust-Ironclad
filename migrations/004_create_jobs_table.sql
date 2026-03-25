@@ -43,3 +43,9 @@ ADD COLUMN worker_id VARCHAR(100);
 
 CREATE INDEX idx_jobs_status_scheduled
 ON jobs(status, scheduled_at);
+
+ALTER TABLE job_queue 
+ADD COLUMN queue_name VARCHAR(50) NOT NULL DEFAULT 'default';
+
+CREATE INDEX idx_job_queue_queue_name 
+ON job_queue(queue_name);

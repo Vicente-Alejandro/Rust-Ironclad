@@ -23,6 +23,7 @@ pub struct Job {
     pub payload: serde_json::Value,
     pub status: String,
     pub priority: i32,
+    pub queue_name: String,
 
     pub scheduled_at: DateTime<Utc>,
     pub retry_at: Option<DateTime<Utc>>,              
