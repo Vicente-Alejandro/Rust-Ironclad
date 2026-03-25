@@ -105,20 +105,6 @@ impl TestItemController {
         })))
     }
 
-    pub async fn requeue_dlq(
-    queue: web::Data<QueueManager>,
-    path: web::Path<String>,
-    ) -> ApiResult<HttpResponse> {
-
-        let dlq_id = path.into_inner();
-
-        let new_job_id = queue.requeue_from_dlq(&dlq_id).await?;
-
-        Ok(HttpResponse::Ok().json(serde_json::json!({
-            "message": "Job requeued successfully",
-            "new_job_id": new_job_id
-        })))
-    }
 }
 
 #[derive(serde::Deserialize)]

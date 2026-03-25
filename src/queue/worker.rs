@@ -19,6 +19,7 @@ use sqlx::PgPool;
 
 use crate::application::TestItemService;
 use crate::queue::{QueueManager, JobPayload};
+use crate::monitoring::queue_monitor::QueueMonitor;
 
 use std::env;
 
@@ -130,6 +131,8 @@ impl Worker {
             .unwrap_or_else(|_| "5".to_string())
             .parse::<i64>()
             .unwrap_or(5);
+        let monitor = QueueMonitor::new(self.queue.pool().clone());
+        let mut last_check = std::time::Instant::now();
 
         tracing::info!("Worker #{} started", worker_id);
         
@@ -138,8 +141,12 @@ impl Worker {
             if let Err(e) = self.queue.recover_stuck_jobs().await {
                 tracing::warn!("Recovery error: {:?}", e);
             }
-            if let Err(e) = self.queue.check_alerts().await {
-                tracing::error!("Alert check error: {:?}", e);
+            // Check alerts every 10 seconds
+            if worker_id == 0 && last_check.elapsed().as_secs() > 10 {
+                if let Err(e) = monitor.check_alerts().await {
+                    tracing::error!("Alert check error: {:?}", e);
+                }
+                last_check = std::time::Instant::now();
             }
 
             // Claim batch
