@@ -183,24 +183,52 @@ impl QueueManager {
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
         if job.attempts >= job.max_attempts {
+
+            // INSERT INTO DLQ
+            sqlx::query(
+                r#"
+                INSERT INTO dead_letter_queue (
+                    id,
+                    original_job_id,
+                    job_type,
+                    payload,
+                    error_message,
+                    attempts,
+                    max_attempts
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                "#
+            )
+            .bind(Uuid::new_v4().to_string())
+            .bind(&job.id)
+            .bind(&job.job_type)
+            .bind(&job.payload)
+            .bind(&job.error_message)
+            .bind(job.attempts)
+            .bind(job.max_attempts)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+            // Set as "dead" instead of just deleting, but you can also choose to delete
             sqlx::query(
                 r#"
                 UPDATE job_queue
-                SET status = 'failed',
-                    completed_at = NOW(),
+                SET status = 'dead',
                     updated_at = NOW()
                 WHERE id = $1
                 "#
             )
             .bind(job_id)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
             tracing::error!(
                 job_id = %job_id,
-                attempts = job.attempts,
-                "Job permanently failed"
+                "Job moved to Dead Letter Queue"
             );
+
         } else {
             let delay = calculate_backoff(job.attempts);
             let retry_at = Utc::now() + Duration::seconds(delay);
@@ -220,19 +248,82 @@ impl QueueManager {
             .bind(job_id)
             .bind(retry_at)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
             tracing::warn!(
                 job_id = %job_id,
-                attempts = job.attempts,
-                retry_in_seconds = delay,
-                retry_at = %retry_at,
-                "Job scheduled for retry with exponential backoff"
+                retry_in = delay,
+                "Retry scheduled"
             );
         }
 
-        tx.commit().await?;
+        tx.commit().await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
         Ok(())
+    }
+
+    pub async fn requeue_from_dlq(&self, dlq_id: &str) -> Result<String, ApiError> {
+
+        let mut tx = self.pool.begin().await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        let row = sqlx::query(
+            r#"
+            SELECT original_job_id, job_type, payload
+            FROM dead_letter_queue
+            WHERE id = $1
+            "#
+        )
+        .bind(dlq_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        let row = match row {
+            Some(r) => r,
+            None => return Err(ApiError::NotFound("DLQ job not found".into()))
+        };
+
+        let job_type: String = row.try_get("job_type")
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        let payload: serde_json::Value = row.try_get("payload")
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        let new_id = Uuid::new_v4().to_string();
+
+        sqlx::query(
+            r#"
+            INSERT INTO job_queue (id, job_type, payload, scheduled_at, max_attempts)
+            VALUES ($1, $2, $3, NOW(), 3)
+            "#
+        )
+        .bind(&new_id)
+        .bind(&job_type)
+        .bind(&payload)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        sqlx::query(
+            r#"
+            DELETE FROM dead_letter_queue
+            WHERE id = $1
+            "#
+        )
+        .bind(dlq_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        tx.commit().await
+            .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+        tracing::info!("DLQ job {} requeued as {}", dlq_id, new_id);
+
+        Ok(new_id)
     }
 
     /// Get queue statistics
