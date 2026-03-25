@@ -7,6 +7,12 @@ use rand::Rng;
 use crate::errors::ApiError;
 use super::job::{Job, JobPayload};
 
+use crate::monitoring::alerts::{Alert, AlertLevel};
+
+// this shoul be a service
+// TODO
+use crate::monitoring::alerts::AlertService;
+
 use std::env;
 
 pub struct QueueManager {
@@ -210,12 +216,10 @@ impl QueueManager {
             .await
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-            // Set as "dead" instead of just deleting, but you can also choose to delete
+            // Delete from main queue to prevent further retries
             sqlx::query(
                 r#"
-                UPDATE job_queue
-                SET status = 'dead',
-                    updated_at = NOW()
+                DELETE FROM job_queue
                 WHERE id = $1
                 "#
             )
@@ -438,6 +442,55 @@ impl QueueManager {
 
         if affected.rows_affected() > 0 {
             tracing::warn!("Recovered {} stuck jobs", affected.rows_affected());
+        }
+
+        Ok(())
+    }
+
+    pub async fn check_alerts(&self) -> Result<(), ApiError> {
+        // 1. Failed jobs
+        let failed: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM job_queue WHERE status = 'failed'"
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        if failed.0 > 10 {
+            AlertService::send(Alert {
+                level: AlertLevel::Critical,
+                message: "High number of failed jobs".into(),
+                metadata: serde_json::json!({ "failed_jobs": failed.0 }),
+            }).await;
+        }
+
+        // 2. Dead letter queue size
+        let dead: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM dead_letter_queue"
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        if dead.0 > 5 {
+            AlertService::send(Alert {
+                level: AlertLevel::Warning,
+                message: "Dead letter queue growing".into(),
+                metadata: serde_json::json!({ "dead_jobs": dead.0 }),
+            }).await;
+        }
+
+        // 3. Pending backlog
+        let pending: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM job_queue WHERE status = 'pending'"
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        if pending.0 > 50 {
+            AlertService::send(Alert {
+                level: AlertLevel::Warning,
+                message: "Queue backlog is high".into(),
+                metadata: serde_json::json!({ "pending_jobs": pending.0 }),
+            }).await;
         }
 
         Ok(())

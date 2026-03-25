@@ -138,6 +138,9 @@ impl Worker {
             if let Err(e) = self.queue.recover_stuck_jobs().await {
                 tracing::warn!("Recovery error: {:?}", e);
             }
+            if let Err(e) = self.queue.check_alerts().await {
+                tracing::error!("Alert check error: {:?}", e);
+            }
 
             // Claim batch
             match self.queue.claim_next_jobs(&worker_id_str, batch_size).await {

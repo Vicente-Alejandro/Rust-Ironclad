@@ -13,6 +13,7 @@ mod routes;
 pub mod route_registry;
 mod bootstrap;
 mod queue;
+mod monitoring;
 
 use middleware::MaintenanceMode;
 use actix_web::{web, App, HttpServer};
