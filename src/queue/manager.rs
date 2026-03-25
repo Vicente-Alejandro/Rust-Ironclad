@@ -7,6 +7,8 @@ use rand::Rng;
 use crate::errors::ApiError;
 use super::job::{Job, JobPayload};
 
+use std::env;
+
 pub struct QueueManager {
     pool: PgPool,
 }
@@ -353,8 +355,14 @@ impl QueueManager {
 fn calculate_backoff(attempts: i32) -> i64 {
     use rand::Rng;
 
-    let base_delay = 2; // Base seconds
-    let max_delay = 300; // Cap at 5 minutes
+    let base_delay = env::var("QUEUE_BACKOFF_BASE")
+        .unwrap_or_else(|_| "2".to_string())
+        .parse::<i64>()
+        .unwrap_or(2);
+    let max_delay = env::var("QUEUE_BACKOFF_MAX")
+        .unwrap_or_else(|_| "300".to_string())
+        .parse::<i64>()
+        .unwrap_or(300);
 
     // Exponential growth
     let exp_delay = base_delay * 2_i64.pow(attempts as u32);
