@@ -40,3 +40,6 @@ ALTER TABLE job_queue
 ADD COLUMN retry_at TIMESTAMPTZ,
 ADD COLUMN lock_expires_at TIMESTAMPTZ,
 ADD COLUMN worker_id VARCHAR(100);
+
+CREATE INDEX idx_jobs_status_scheduled
+ON jobs(status, scheduled_at);
