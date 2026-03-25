@@ -20,6 +20,8 @@ use sqlx::PgPool;
 use crate::application::TestItemService;
 use crate::queue::{QueueManager, JobPayload};
 
+use std::env;
+
 /// Worker pool for processing asynchronous jobs.
 ///
 /// The `Worker` struct manages a pool of background tasks that continuously
@@ -99,7 +101,6 @@ impl Worker {
                 worker.run(worker_id).await;
             });
         }
-        tracing::info!("🔧 Started {} workers", num_workers);
     }
 
     /// Main event loop for a single worker task.
@@ -123,48 +124,71 @@ impl Worker {
     /// - **Processing Error**: Job is marked as failed with error details; retry logic is handled internally
     /// - **Claim Error**: Worker sleeps 5 seconds before retrying (DB connection issues)
     /// - **No Jobs**: Worker sleeps 1 second before polling again (normal idle state)
-    async fn run(&self, worker_id: usize) {
+    async fn run(self: Arc<Self>, worker_id: usize) {
         let worker_id_str = format!("worker-{}", worker_id);
+        let batch_size = env::var("QUEUE_BATCH_SIZE")
+            .unwrap_or_else(|_| "5".to_string())
+            .parse::<i64>()
+            .unwrap_or(5);
 
         tracing::info!("Worker #{} started", worker_id);
-
+        
         loop {
-            
+            // Recover stuck jobs
             if let Err(e) = self.queue.recover_stuck_jobs().await {
-                tracing::info!("Recovery error: {:?}", e);
+                tracing::warn!("Recovery error: {:?}", e);
             }
 
-            match self.queue.claim_next_job(&worker_id_str).await {
-                Ok(Some(job)) => {
+            // Claim batch
+            match self.queue.claim_next_jobs(&worker_id_str, batch_size).await {
+                Ok(jobs) if !jobs.is_empty() => {
+
                     tracing::info!(
-                        job_id = %job.id,
                         worker_id = %worker_id_str,
-                        "Job claimed"
+                        batch_size = jobs.len(),
+                        "Batch claimed"
                     );
 
-                    let result = tokio::time::timeout(
-                        Duration::from_secs(30),
-                        self.process_job(&job)
-                    ).await;
+                    // Process in parallel
+                    let mut handles = Vec::new();
 
-                    match result {
-                        Ok(Ok(_)) => {
-                            if let Err(e) = self.queue.mark_completed(&job.id).await {
-                                tracing::error!("Mark completed error: {:?}", e);
+                    for job in jobs {
+                        let queue = self.queue.clone();
+                        let worker = self.clone();
+                        let job_id = job.id.clone();
+
+                        let handle = tokio::spawn(async move {
+                            let result = tokio::time::timeout(
+                                Duration::from_secs(30),
+                                worker.process_job(&job)
+                            ).await;
+
+                            match result {
+                                Ok(Ok(_)) => {
+                                    let _ = queue.mark_completed(&job_id).await;
+                                }
+                                Ok(Err(e)) => {
+                                    let _ = queue.mark_failed(&job_id, &format!("{:?}", e)).await;
+                                }
+                                Err(_) => {
+                                    let _ = queue.mark_failed(&job_id, "Timeout").await;
+                                }
                             }
-                        }
-                        Ok(Err(e)) => {
-                            let error_msg = format!("{:?}", e);
-                            let _ = self.queue.mark_failed(&job.id, &error_msg).await;
-                        }
-                        Err(_) => {
-                            let _ = self.queue.mark_failed(&job.id, "Timeout").await;
-                        }
+                        });
+
+                        handles.push(handle);
+                    }
+
+                    // Wait for complete batch
+                    for handle in handles {
+                        let _ = handle.await;
                     }
                 }
-                Ok(None) => {
+
+                Ok(_) => {
                     time::sleep(Duration::from_secs(1)).await;
                 }
+
                 Err(e) => {
                     tracing::error!("Worker error: {:?}", e);
                     time::sleep(Duration::from_secs(5)).await;

@@ -63,8 +63,6 @@ impl QueueManager {
         self.schedule(payload, scheduled_at, 3).await
     }
 
-    /// ATOMIC: Get pending job AND mark as running in one transaction
-    /// This prevents multiple workers from claiming the same job
     /// Claim multiple jobs atomically (Batch Processing)
     pub async fn claim_next_jobs(
         &self,
