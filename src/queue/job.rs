@@ -2,20 +2,18 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+
+// This enum defines the different types of jobs that can be processed by the worker. Each variant can have its own associated data as needed. For this example, we only implement a single job type (DeleteTestItem) to demonstrate the structure
 pub enum JobType {
     DeleteTestItem,
-    SendEmail,
-    ProcessPayment,
-    GenerateReport,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
+
+// Here would be the payload for different job types. For simplicity, we only implement DeleteTestItem in this example.
 pub enum JobPayload {
     DeleteTestItem { item_id: String },
-    SendEmail { to: String, subject: String, body: String },
-    ProcessPayment { amount: f64, user_id: String },
-    GenerateReport { report_type: String, user_id: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]

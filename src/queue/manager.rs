@@ -30,9 +30,6 @@ impl QueueManager {
     ) -> Result<String, ApiError> {
         let job_type = match &payload {
             JobPayload::DeleteTestItem { .. } => "DeleteTestItem",
-            JobPayload::SendEmail { .. } => "SendEmail",
-            JobPayload::ProcessPayment { .. } => "ProcessPayment",
-            JobPayload::GenerateReport { .. } => "GenerateReport",
         };
 
         let payload_json = serde_json::to_value(&payload)

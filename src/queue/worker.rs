@@ -191,9 +191,6 @@ impl Worker {
     /// # Supported Job Types
     ///
     /// - `DeleteTestItem`: Delete a test item from the database
-    /// - `SendEmail`: Send an email with the provided content
-    /// - `ProcessPayment`: Process a payment transaction
-    /// - `GenerateReport`: Generate and store a report
     ///
     /// # Error Handling
     ///
@@ -215,27 +212,6 @@ impl Worker {
                 Ok(())
             }
             
-            JobPayload::SendEmail { to, subject, body } => {
-                tracing::info!("Processing SendEmail job to: {}", to);
-                // TODO: Integrate with email service provider
-                tracing::info!("📧 Email sent to {} with subject: {}", to, subject);
-                tracing::debug!("Email body: {}", body);
-                Ok(())
-            }
-            
-            JobPayload::ProcessPayment { amount, user_id } => {
-                tracing::info!("Processing ProcessPayment job: ${} for user {}", amount, user_id);
-                // TODO: Integrate with payment gateway
-                tracing::info!("💳 Payment of ${} processed for user {}", amount, user_id);
-                Ok(())
-            }
-            
-            JobPayload::GenerateReport { report_type, user_id } => {
-                tracing::info!("Processing GenerateReport job: {} for user {}", report_type, user_id);
-                // TODO: Implement report generation logic
-                tracing::info!("📊 Report '{}' generated for user {}", report_type, user_id);
-                Ok(())
-            }
         }
     }
 }
