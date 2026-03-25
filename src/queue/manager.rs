@@ -225,8 +225,9 @@ impl QueueManager {
             tracing::warn!(
                 job_id = %job_id,
                 attempts = job.attempts,
-                retry_in = delay,
-                "Job failed, scheduling retry"
+                retry_in_seconds = delay,
+                retry_at = %retry_at,
+                "Job scheduled for retry with exponential backoff"
             );
         }
 
