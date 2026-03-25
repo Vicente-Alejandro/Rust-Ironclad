@@ -351,8 +351,20 @@ impl QueueManager {
 }
 
 fn calculate_backoff(attempts: i32) -> i64 {
-    let base = 2_i64.pow(attempts as u32);
+    use rand::Rng;
+
+    let base_delay = 2; // Base seconds
+    let max_delay = 300; // Cap at 5 minutes
+
+    // Exponential growth
+    let exp_delay = base_delay * 2_i64.pow(attempts as u32);
+
+    // Max cap to prevent excessively long delays
+    let capped = std::cmp::min(exp_delay, max_delay);
+
+    // Full jitter (0 → capped)
     let mut rng = rand::thread_rng();
-    let jitter = (rng.gen::<u8>() % 5) as i64;
-    base + jitter
+    let jitter = rng.gen_range(0..=capped);
+
+    jitter
 }
