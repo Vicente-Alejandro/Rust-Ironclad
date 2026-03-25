@@ -9,9 +9,8 @@ use super::job::{Job, JobPayload};
 
 use crate::monitoring::alerts::{Alert, AlertLevel};
 
-// this shoul be a service
-// TODO
-use crate::monitoring::alerts::AlertService;
+// Alert service in /services
+use crate::application::services::AlertService;
 
 use std::env;
 
