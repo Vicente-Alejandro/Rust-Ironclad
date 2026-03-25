@@ -63,10 +63,16 @@ impl QueueManager {
         self.schedule(payload, scheduled_at, 3).await
     }
 
-    /// 🆕 ATOMIC: Get pending job AND mark as running in one transaction
+    /// ATOMIC: Get pending job AND mark as running in one transaction
     /// This prevents multiple workers from claiming the same job
-    pub async fn claim_next_job(&self, worker_id: &str) -> Result<Option<Job>, ApiError> {
-        let job = sqlx::query_as::<_, Job>(
+    /// Claim multiple jobs atomically (Batch Processing)
+    pub async fn claim_next_jobs(
+        &self,
+        worker_id: &str,
+        limit: i64
+    ) -> Result<Vec<Job>, ApiError> {
+
+        let jobs = sqlx::query_as::<_, Job>(
             r#"
             UPDATE job_queue
             SET status = 'running',
@@ -74,24 +80,25 @@ impl QueueManager {
                 lock_expires_at = NOW() + interval '30 seconds',
                 worker_id = $1,
                 updated_at = NOW()
-            WHERE id = (
+            WHERE id IN (
                 SELECT id FROM job_queue
                 WHERE status = 'pending'
                 AND scheduled_at <= NOW()
                 AND (retry_at IS NULL OR retry_at <= NOW())
                 ORDER BY priority DESC, scheduled_at ASC
-                LIMIT 1
+                LIMIT $2
                 FOR UPDATE SKIP LOCKED
             )
             RETURNING *
             "#
         )
         .bind(worker_id)
-        .fetch_optional(&self.pool)
+        .bind(limit)
+        .fetch_all(&self.pool)
         .await
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        Ok(job)
+        Ok(jobs)
     }
 
     /// ❌ DEPRECATED: Use claim_next_job() instead
