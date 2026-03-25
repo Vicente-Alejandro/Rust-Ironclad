@@ -177,6 +177,7 @@ impl HealthController {
 
         Ok(HttpResponse::Ok().json(response))
     }
+    
     pub async fn jobs_info(pool: web::Data<PgPool>) -> ApiResult<HttpResponse> {
         use sqlx::Row;
 

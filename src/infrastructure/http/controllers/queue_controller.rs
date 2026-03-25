@@ -7,17 +7,6 @@ use crate::queue::QueueManager;
 pub struct QueueController;
 
 impl QueueController {
-    /// Get all pending jobs
-    pub async fn get_pending(
-        queue: web::Data<Arc<QueueManager>>,
-    ) -> ApiResult<HttpResponse> {
-        let jobs = queue.get_pending_jobs(100).await?;
-        Ok(HttpResponse::Ok().json(serde_json::json!({
-            "total": jobs.len(),
-            "jobs": jobs
-        })))
-    }
-
     /// Get job statistics
     pub async fn get_stats(
         queue: web::Data<Arc<QueueManager>>,

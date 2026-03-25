@@ -106,47 +106,6 @@ impl QueueManager {
         Ok(jobs)
     }
 
-    /// ❌ DEPRECATED: Use claim_next_job() instead
-    /// Get pending jobs ready to be executed
-    #[allow(dead_code)]
-    pub async fn get_pending_jobs(&self, limit: i64) -> Result<Vec<Job>, ApiError> {
-        let jobs = sqlx::query_as::<_, Job>(
-            r#"
-            SELECT * FROM job_queue
-            WHERE status = 'pending'
-              AND scheduled_at <= NOW()
-            ORDER BY priority DESC, scheduled_at ASC
-            LIMIT $1
-            "#
-        )
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
-
-        Ok(jobs)
-    }
-
-    /// ❌ DEPRECATED: No longer needed (claim_next_job does this atomically)
-    #[allow(dead_code)]
-    pub async fn mark_running(&self, job_id: &str) -> Result<(), ApiError> {
-        sqlx::query(
-            r#"
-            UPDATE job_queue
-            SET status = 'running',
-                started_at = NOW(),
-                updated_at = NOW()
-            WHERE id = $1
-            "#
-        )
-        .bind(job_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
-
-        Ok(())
-    }
-
     /// Mark job as completed
     pub async fn mark_completed(&self, job_id: &str) -> Result<(), ApiError> {
         sqlx::query(
