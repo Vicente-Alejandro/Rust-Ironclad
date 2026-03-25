@@ -14,12 +14,16 @@
 
 use std::sync::Arc;
 use std::time::Duration;
+use rand::Rng;
 use tokio::time;
 use sqlx::PgPool;
 
 use crate::application::TestItemService;
 use crate::queue::{QueueManager, JobPayload};
 use crate::monitoring::queue_monitor::QueueMonitor;
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio::sync::Semaphore;
 
 use std::env;
 
@@ -42,6 +46,7 @@ use std::env;
 pub struct Worker {
     /// Queue manager for job coordination and state management
     queue: Arc<QueueManager>,
+    scheduler_index: AtomicUsize,
     /// Service for processing test item jobs
     test_item_service: Arc<TestItemService>,
 }
@@ -69,6 +74,7 @@ impl Worker {
     ) -> Self {
         Self {
             queue: Arc::new(QueueManager::new(pool)),
+            scheduler_index: AtomicUsize::new(0),
             test_item_service,
         }
     }
@@ -95,13 +101,17 @@ impl Worker {
     /// let worker = Arc::new(Worker::new(pool, service));
     /// worker.start(4); // Start 4 concurrent workers
     /// ```
+    
     pub fn start(self: Arc<Self>, num_workers: usize) {
         for worker_id in 0..num_workers {
             let worker = Arc::clone(&self);
+
             tokio::spawn(async move {
                 worker.run(worker_id).await;
             });
         }
+
+        tracing::info!("🔧 Started {} workers", num_workers);
     }
 
     /// Main event loop for a single worker task.
@@ -131,6 +141,8 @@ impl Worker {
             .unwrap_or_else(|_| "5".to_string())
             .parse::<i64>()
             .unwrap_or(5);
+
+        let semaphore = Arc::new(Semaphore::new(11));
         let monitor = QueueMonitor::new(self.queue.pool().clone());
         let mut last_check = std::time::Instant::now();
 
@@ -150,24 +162,35 @@ impl Worker {
             }
 
             // Claim batch
-            match self.queue.claim_next_jobs(&worker_id_str, batch_size).await {
+            let weighted_queues = vec![
+                ("critical", 5),
+                ("default", 3),
+                ("low", 2),
+            ];
+
+            let mut queue_cycle = Vec::new();
+            for (queue, weight) in &weighted_queues {
+                for _ in 0..*weight {
+                    queue_cycle.push(*queue);
+                }
+            }
+
+            let index = self.scheduler_index.fetch_add(1, Ordering::Relaxed);
+            let queue = queue_cycle[index % queue_cycle.len()];
+
+            let queues = vec![queue];
+
+            // Claim con multi-queue
+            match self.queue.claim_next_jobs(&worker_id_str, &queues, batch_size).await {
                 Ok(jobs) if !jobs.is_empty() => {
-
-                    tracing::info!(
-                        worker_id = %worker_id_str,
-                        batch_size = jobs.len(),
-                        "Batch claimed"
-                    );
-
-                    // Process in parallel
-                    let mut handles = Vec::new();
-
                     for job in jobs {
                         let queue = self.queue.clone();
-                        let worker = self.clone();
-                        let job_id = job.id.clone();
+                        let worker = Arc::clone(&self);
+                        let semaphore = semaphore.clone();
 
-                        let handle = tokio::spawn(async move {
+                        tokio::spawn(async move {
+                            let permit = semaphore.acquire_owned().await.unwrap();
+
                             let result = tokio::time::timeout(
                                 Duration::from_secs(30),
                                 worker.process_job(&job)
@@ -175,30 +198,23 @@ impl Worker {
 
                             match result {
                                 Ok(Ok(_)) => {
-                                    let _ = queue.mark_completed(&job_id).await;
+                                    let _ = queue.mark_completed(&job.id).await;
                                 }
                                 Ok(Err(e)) => {
-                                    let _ = queue.mark_failed(&job_id, &format!("{:?}", e)).await;
+                                    let _ = queue.mark_failed(&job.id, &format!("{:?}", e)).await;
                                 }
                                 Err(_) => {
-                                    let _ = queue.mark_failed(&job_id, "Timeout").await;
+                                    let _ = queue.mark_failed(&job.id, "Timeout").await;
                                 }
                             }
+
+                            drop(permit); // Free the permit after processing
                         });
-
-                        handles.push(handle);
-                    }
-
-                    // Wait for complete batch
-                    for handle in handles {
-                        let _ = handle.await;
                     }
                 }
-
                 Ok(_) => {
                     time::sleep(Duration::from_secs(1)).await;
                 }
-
                 Err(e) => {
                     tracing::error!("Worker error: {:?}", e);
                     time::sleep(Duration::from_secs(5)).await;

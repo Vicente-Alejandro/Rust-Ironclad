@@ -77,7 +77,8 @@ impl QueueManager {
     pub async fn claim_next_jobs(
         &self,
         worker_id: &str,
-        limit: i64
+        queues: &[&str],
+        batch_size: i64,
     ) -> Result<Vec<Job>, ApiError> {
 
         let jobs = sqlx::query_as::<_, Job>(
@@ -91,18 +92,20 @@ impl QueueManager {
             WHERE id IN (
                 SELECT id FROM job_queue
                 WHERE status = 'pending'
+                AND queue_name = ANY($2)
                 AND scheduled_at <= NOW()
                 AND (retry_at IS NULL OR retry_at <= NOW())
-                ORDER BY priority DESC, scheduled_at ASC
-                LIMIT $2
+                ORDER BY scheduled_at ASC
+                LIMIT $3
                 FOR UPDATE SKIP LOCKED
             )
             RETURNING *
             "#
         )
         .bind(worker_id)
-        .bind(limit)
-        .fetch_all(&self.pool)
+        .bind(queues)
+        .bind(batch_size)
+        .fetch_all(&self.pool) // 🔥 CAMBIO CLAVE
         .await
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
@@ -227,6 +230,37 @@ impl QueueManager {
             .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
         Ok(())
+    }
+
+    pub async fn enqueue_with_queue(
+        &self,
+        payload: JobPayload,
+        queue_name: &str,
+    ) -> Result<String, ApiError> {
+
+        let job_type = match &payload {
+            JobPayload::DeleteTestItem { .. } => "DeleteTestItem",
+        };
+
+        let payload_json = serde_json::to_value(&payload)
+            .map_err(|e| ApiError::InternalServerError(format!("Failed to serialize payload: {}", e)))?;
+
+        let job_id = Uuid::new_v4().to_string();
+
+        sqlx::query(
+            r#"
+            INSERT INTO job_queue (id, job_type, payload, queue_name, scheduled_at, max_attempts)
+            VALUES ($1, $2, $3, $4, NOW(), 3)
+            "#
+        )
+        .bind(&job_id)
+        .bind(job_type)
+        .bind(payload_json)
+        .bind(queue_name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(job_id)
     }
 
     pub async fn requeue_from_dlq(&self, dlq_id: &str) -> Result<String, ApiError> {
