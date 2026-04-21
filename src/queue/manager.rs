@@ -27,8 +27,9 @@ impl QueueManager {
     }
 
     /// Enqueue a job to be executed immediately
+    /// TODO: modify to accept priority and queue name
     pub async fn enqueue(&self, payload: JobPayload) -> Result<String, ApiError> {
-        self.schedule(payload, Utc::now(), 3).await
+        self.schedule(payload, Utc::now(), 3, 0, "default").await
     }
 
     /// Schedule a job to be executed at a specific time
@@ -37,6 +38,8 @@ impl QueueManager {
         payload: JobPayload,
         scheduled_at: DateTime<Utc>,
         max_attempts: i32,
+        priority: i32,
+        queue_name: &str,
     ) -> Result<String, ApiError> {
         let job_type = match &payload {
             JobPayload::DeleteTestItem { .. } => "DeleteTestItem",
@@ -49,8 +52,9 @@ impl QueueManager {
 
         let job: Job = sqlx::query_as(
             r#"
-            INSERT INTO job_queue (id, job_type, payload, scheduled_at, max_attempts)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO job_queue 
+            (id, job_type, payload, scheduled_at, max_attempts, priority, queue_name)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#
         )
@@ -59,18 +63,27 @@ impl QueueManager {
         .bind(payload_json)
         .bind(scheduled_at)
         .bind(max_attempts)
+        .bind(priority)
+        .bind(queue_name)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
-        tracing::info!("Job {} enqueued: {}", job.id, job_type);
+        tracing::info!(
+            job_id = %job.id,
+            queue = queue_name,
+            priority = priority,
+            "Job scheduled"
+        );
+
         Ok(job.id)
     }
 
     /// Schedule a job to run after X seconds
+    /// TODO: modify to accept priority and queue name
     pub async fn enqueue_in(&self, payload: JobPayload, delay_seconds: i64) -> Result<String, ApiError> {
         let scheduled_at = Utc::now() + Duration::seconds(delay_seconds);
-        self.schedule(payload, scheduled_at, 3).await
+        self.schedule(payload, scheduled_at, 3, 0, "default").await
     }
 
     /// Claim multiple jobs atomically (Batch Processing)
