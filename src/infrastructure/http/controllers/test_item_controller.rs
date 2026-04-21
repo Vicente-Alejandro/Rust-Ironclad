@@ -67,43 +67,53 @@ impl TestItemController {
         queue: web::Data<Arc<QueueManager>>,
         id: web::Path<String>,
     ) -> ApiResult<HttpResponse> {
+
         let item_id = id.into_inner();
-        
-        // Enqueue job with 10 seconds delay
+
+        // 🎯 Definir prioridad y cola según contexto
+        // Define priority and queue based on context
+        let priority = 10;              // HIGH
+        let queue_name = "critical";    // critical | default | low
+
         let job_id = queue.enqueue_in(
             JobPayload::DeleteTestItem { item_id: item_id.clone() },
-            10  // 10 seconds
+            10,
+            priority,
+            queue_name,
         ).await?;
 
         Ok(HttpResponse::Accepted().json(serde_json::json!({
             "status": "queued",
             "job_id": job_id,
+            "priority": priority,
+            "queue": queue_name,
             "message": format!("Deletion for item {} scheduled in 10 seconds", item_id),
             "scheduled_at": chrono::Utc::now() + chrono::Duration::seconds(10)
         })))
     }
 
-    /// Schedule deletion at specific time
-    pub async fn schedule_delete_at(
-        queue: web::Data<Arc<QueueManager>>,
-        id: web::Path<String>,
-        req: web::Json<ScheduleRequest>,
-    ) -> ApiResult<HttpResponse> {
-        let item_id = id.into_inner();
+    // Schedule deletion at specific time
+    // Yoy can uncomment this method and add the corresponding route in src/routes/api.rs if you want to support scheduling at specific times instead of just a fixed delay.
+    // pub async fn schedule_delete_at(
+    //     queue: web::Data<Arc<QueueManager>>,
+    //     id: web::Path<String>,
+    //     req: web::Json<ScheduleRequest>,
+    // ) -> ApiResult<HttpResponse> {
+    //     let item_id = id.into_inner();
         
-        let job_id = queue.schedule(
-            JobPayload::DeleteTestItem { item_id: item_id.clone() },
-            req.scheduled_at,
-            3  // max 3 attempts
-        ).await?;
+    //     let job_id = queue.schedule(
+    //         JobPayload::DeleteTestItem { item_id: item_id.clone() },
+    //         req.scheduled_at,
+    //         3  // max 3 attempts
+    //     ).await?;
 
-        Ok(HttpResponse::Accepted().json(serde_json::json!({
-            "status": "queued",
-            "job_id": job_id,
-            "message": format!("Deletion for item {} scheduled at {}", item_id, req.scheduled_at),
-            "scheduled_at": req.scheduled_at
-        })))
-    }
+    //     Ok(HttpResponse::Accepted().json(serde_json::json!({
+    //         "status": "queued",
+    //         "job_id": job_id,
+    //         "message": format!("Deletion for item {} scheduled at {}", item_id, req.scheduled_at),
+    //         "scheduled_at": req.scheduled_at
+    //     })))
+    // }
 
 }
 

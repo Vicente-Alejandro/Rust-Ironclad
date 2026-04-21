@@ -80,10 +80,15 @@ impl QueueManager {
     }
 
     /// Schedule a job to run after X seconds
-    /// TODO: modify to accept priority and queue name
-    pub async fn enqueue_in(&self, payload: JobPayload, delay_seconds: i64) -> Result<String, ApiError> {
+    pub async fn enqueue_in(
+        &self,
+        payload: JobPayload,
+        delay_seconds: i64,
+        priority: i32,
+        queue_name: &str,
+    ) -> Result<String, ApiError> {
         let scheduled_at = Utc::now() + Duration::seconds(delay_seconds);
-        self.schedule(payload, scheduled_at, 3, 0, "default").await
+        self.schedule(payload, scheduled_at, 3, priority, queue_name).await
     }
 
     /// Claim multiple jobs atomically (Batch Processing)
